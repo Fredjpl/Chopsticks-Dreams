@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# MacOS system files
+.DS_Store
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Output / temp files
+*.log
+*.tmp
+*.bak
+
+# Jupyter notebook checkpoints (if any)
+.ipynb_checkpoints/
+
+# OS-generated files
+Thumbs.db
+ehthumbs.db
+
+# If you use pytest
+.pytest_cache/
+
+# If you ever use mypy
+.mypy_cache/
+
+# Ignore data output (optional)
+data/output/
+*.json
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
+
+# Now ignore PDF and Excel files
