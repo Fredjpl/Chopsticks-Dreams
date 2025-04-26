@@ -10,7 +10,6 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_core import CancellationToken
-import autogen
 
 # ---- RAG primitives --------------------------------------------
 from tools.rag.pdf_parse import DataProcess
@@ -79,9 +78,8 @@ async def main():
     )
     
     # Create the user proxy agent
-    user = autogen.UserProxyAgent(
+    user = UserProxyAgent(
         name="User", 
-        human_input_mode="TERMINATE"
     )
     
     # Create a termination condition
