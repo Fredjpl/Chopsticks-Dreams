@@ -1,0 +1,9 @@
+autogen
+autogen-ext[mcp]
+langchain_community
+chromadb
+openai
+tiktoken
+faiss-cpu                  # if you build on CUDA image, else use faiss-cpu
+text2vec
+jieba
