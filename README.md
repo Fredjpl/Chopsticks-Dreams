@@ -6,7 +6,8 @@ export COHERE_API_KEY="c0h3r3..."   # https://dashboard.cohere.com/api-keys
 # Build the indexes
 ```
 pip install -r requirements.txt
-python tools/rag/build_index.py
+python -m tools.rag.build_index
+
 ```
 # Ask the chef
 ```
