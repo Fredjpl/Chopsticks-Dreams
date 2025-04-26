@@ -1,0 +1,14 @@
+# Ignore all .log files
+*.log
+
+# Ignore the /build directory
+build/
+
+# Ignore a specific file
+secrets.txt
+
+# Ignore everything in logs/ except keep the folder
+logs/*
+!logs/.gitkeep
+*.pkl
+*.faiss
