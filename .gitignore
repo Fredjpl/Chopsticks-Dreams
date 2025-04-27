@@ -10,5 +10,3 @@ secrets.txt
 # Ignore everything in logs/ except keep the folder
 logs/*
 !logs/.gitkeep
-*.pkl
-*.faiss

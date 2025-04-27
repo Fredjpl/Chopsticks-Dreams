@@ -18,16 +18,34 @@ from langchain_community.vectorstores import FAISS
 __all__ = ["FaissRetriever"]
 
 
+import asyncio
+
 class FaissRetriever:
+    @staticmethod
+    async def _embed_batch(embeddings, chunk: List[Document]) -> List[List[float]]:
+        """
+        Helper to embed a batch asynchronously.
+        """
+        texts = [d.page_content for d in chunk]
+        return await embeddings.aembed_documents(texts)
+
+    @staticmethod
+    def _batch_documents(docs: List[Document], batch_size: int) -> List[List[Document]]:
+        """
+        Split documents into batches of batch_size.
+        """
+        return [docs[i:i + batch_size] for i in range(0, len(docs), batch_size)]
+
     @staticmethod
     def _build_index_with_progress(
         texts: Sequence[str],
         embeddings: OpenAIEmbeddings,
-        batch: int = 128,
+        batch: int = 512,
+        concurrent_tasks: int = 5,
     ) -> FAISS:
         """
-        Manually embed in batches so we can show a tqdm bar, then
-        build a FAISS index from the vectors.
+        Manually embed in batches with concurrency so we can show a tqdm bar,
+        then build a FAISS index from the vectors.
         """
         # 1. Pre-create Document objects
         docs = [
@@ -35,20 +53,36 @@ class FaissRetriever:
             for i, t in enumerate(texts) if len(t.strip()) > 4
         ]
 
-        # 2. Embed in batches w/ progress
-        vectors, metadatas = [], []
-        for i in tqdm(range(0, len(docs), batch), desc="Embedding"):
-            chunk = docs[i : i + batch]
-            vecs = embeddings.embed_documents([d.page_content for d in chunk])
-            vectors.extend(vecs)
-            metadatas.extend([d.metadata for d in chunk])
+        # 2. Split docs into batches
+        doc_batches = FaissRetriever._batch_documents(docs, batch)
 
-        # 3. Build FAISS index manually (one big add)
+        # 3. Embed with asyncio
+        async def embed_all_batches():
+            results = []
+            sem = asyncio.Semaphore(concurrent_tasks)  # limit concurrent tasks
+
+            async def run_batch(chunk):
+                async with sem:
+                    return await FaissRetriever._embed_batch(embeddings, chunk)
+
+            tasks = [run_batch(chunk) for chunk in doc_batches]
+
+            for f in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Embedding"):
+                res = await f
+                results.append(res)
+            return results
+
+        vectors_nested = asyncio.run(embed_all_batches())  # list of lists
+        vectors = [vec for batch in vectors_nested for vec in batch]
+        metadatas = [d.metadata for d in docs]
+
+        # 4. Build FAISS index manually
         dim = len(vectors[0])
         index = faiss.IndexFlatL2(dim)
         index.add(np.array(vectors).astype("float32"))
 
         return FAISS(index, docs, metadatas, embeddings)
+
     # --------------------------- build ---------------------------
     def __init__(self,
                  texts: Sequence[str],
