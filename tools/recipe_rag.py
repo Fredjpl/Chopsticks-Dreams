@@ -1,102 +1,185 @@
-"""Ask for ingredients → return suitable Chinese dishes (RAG)."""
+"""tools/recipe_rag.py — Retrieval‑Augmented Chinese‑recipe assistant
+
+This module builds/loads the hybrid BM25 + FAISS indexes (with Cohere
+cross‑encoder re‑ranker) once at import‑time, then exposes **`answer_query`** –
+an *async* function that the terminal UI (``tools/ui.py``) calls to answer each
+user question.
+
+Running this file directly will drop you into the interactive chat loop that is
+provided by ``tools.ui``.
+"""
+from __future__ import annotations
+
 import asyncio
+import logging
+import os
 from pathlib import Path
 from typing import List
+import datetime
 
-# Updated imports for AutoGen v0.4
-from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
-from autogen_agentchat.ui import Console
-from autogen_ext.models.openai import OpenAIChatCompletionClient
-from autogen_agentchat.teams import RoundRobinGroupChat
-from autogen_agentchat.conditions import TextMentionTermination
-from autogen_core import CancellationToken
+import openai  # needs OPENAI_API_KEY env‑var
+from pydantic import BaseModel, ConfigDict
+from langchain.schema import Document
 
-# ---- RAG primitives --------------------------------------------
+# ─────────────────────────── RAG building blocks ──────────────────────────
 from tools.rag.pdf_parse import DataProcess
 from tools.rag.bm25_retriever import BM25
 from tools.rag.faiss_retriever import FaissRetriever
 from tools.rag.rerank_api import APIReranker
 
+# ----------------------------------------------------------------------------
+# Logging (quiet by default – enable in your main app if you want)
+# ----------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------------------
+# Index / model paths & constants
+# ----------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[1]
 PDF_PATH = ROOT / "data" / "how_to_cook.pdf"
 INDEX_DIR = ROOT / "indexes"
 BM25_PATH = INDEX_DIR / "bm25.pkl"
 FAISS_PATH = INDEX_DIR / "faiss"
-EMBED_MODEL = "text-embedding-3-large"          # multilingual
-TOPK_LEX, TOPK_DENSE, FINAL_K = 20, 20, 6
 
-# ----------------------------------------------------------------
-# One-time startup: parse PDF + (re)build / load indexes
-# ----------------------------------------------------------------
-INDEX_DIR.mkdir(exist_ok=True)
-dp = DataProcess(PDF_PATH)
-dp.parse(max_seq=512)           # ~2-3 s
-TEXTS: List[str] = dp.data
+EMBED_MODEL = "text-embedding-3-large"  # multilingual – handles Chinese well
+top_k_lex = 20
+top_k_dense = 20
+final_k = 6
 
-if BM25_PATH.exists():
-    bm25 = BM25.load(BM25_PATH)
-else:
-    bm25 = BM25(TEXTS)
-    bm25.save(BM25_PATH)
+# ----------------------------------------------------------------------------
+# One‑off index build / load (executed at module import) – no stdout prints
+# ----------------------------------------------------------------------------
+INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
-if FAISS_PATH.exists():
-    faiss = FaissRetriever.load(FAISS_PATH, model_name=EMBED_MODEL)
-else:
-    faiss = FaissRetriever(TEXTS, model_name=EMBED_MODEL, chunk_size=128)
-    faiss.save(FAISS_PATH)
+if not (BM25_PATH.exists() and FAISS_PATH.exists()):
+    # First run → build indexes (can take a few minutes depending on PDF size)
+    logger.info("Building BM25 / FAISS indexes – first‑time setup …")
+    dp = DataProcess(PDF_PATH)
+    dp.parse(max_seq=512)
+    texts: List[str] = dp.data
+    
+    bm25_tmp = BM25(texts)
+    bm25_tmp.save(BM25_PATH)
+    
+    fr_tmp = FaissRetriever(texts, model_name=EMBED_MODEL, chunk_size=128)
+    fr_tmp.save(FAISS_PATH)
+    del bm25_tmp, fr_tmp  # free mem before loading normally
 
+# Load indexes (fast) ----------------------------------------------------------------
+logger.info("Loading indexes …")
+bm25 = BM25.load(BM25_PATH)
+faiss = FaissRetriever.load(FAISS_PATH, model_name=EMBED_MODEL)
 reranker = APIReranker(model="rerank-multilingual-v3.0")
 
-# ---------------- RAG pipeline callable -------------------------
-async def ingredient_query(question: str) -> str:
-    """Return a few best-matching recipe passages for *question*."""
-    bm25_hits = [d.page_content for d in bm25.GetBM25TopK(question, TOPK_LEX)]
-    faiss_hits = [d[0].page_content for d in faiss.GetTopK(question, TOPK_DENSE)]
+# ----------------------------------------------------------------------------
+# Helper Pydantic wrapper so AutoGen / UI prints a short placeholder instead of
+# the full retrieved passages when debugging.
+# ----------------------------------------------------------------------------
+class RagResult(BaseModel):
+    content: str
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __str__(self) -> str:  # noqa: DunderStr: show concise preview in logs
+        return "✅ RAG result (hidden)"
+
+# ----------------------------------------------------------------------------
+# Core retrieval routine (async because FAISS + Cohere calls are blocking)
+# ----------------------------------------------------------------------------
+async def _ingredient_query(question: str) -> RagResult:
+    """Hybrid lexical + dense search followed by Cohere rerank → top passages."""
+    # 1) lexical BM25
+    bm25_hits = [d.page_content for d in bm25.GetBM25TopK(question, top_k_lex)]
+    # 2) dense FAISS
+    faiss_hits = [d[0].page_content for d in faiss.GetTopK(question, top_k_dense)]
+    # 3) merge & deduplicate
     pool = {t: t for t in bm25_hits + faiss_hits}.values()
-    from langchain.schema import Document
-    reranked = reranker.predict(question,
-                               [Document(page_content=p) for p in pool])
-    top = reranked[:FINAL_K]
-    return "\n\n---\n\n".join(f"{i+1}. {d.page_content}" for i, d in enumerate(top))
+    # 4) Cohere cross‑encoder rerank (blocking ⇒ run in thread)
+    loop = asyncio.get_running_loop()
+    reranked = await loop.run_in_executor(
+        None,
+        lambda: reranker.predict(
+            question, [Document(page_content=p) for p in pool]
+        )[: final_k],
+    )
+    formatted = "\n\n---\n\n".join(
+        f"{i+1}. {d.page_content}" for i, d in enumerate(reranked)
+    )
+    return RagResult(content=formatted)
 
-# ---------------- AutoGen agent wiring --------------------------
-async def main():
-    # Initialize the OpenAI client
-    model_client = OpenAIChatCompletionClient(model="gpt-4o-mini")
-    
-    # Create the chef assistant agent with the RAG tool
-    chef_bot = AssistantAgent(
-        name="ChefBot",
-        system_message=(
-            "You are a culinary assistant specialised in Chinese cuisine. "
-            "Use the `ingredient_query` tool to fetch recipe excerpts, then "
-            "suggest concrete dishes the user can cook."
-            "Finish with TERMINATE when satisfied."
-        ),
-        model_client=model_client,
-        tools=[ingredient_query],
-    )
-    
-    # Create the user proxy agent
-    user = UserProxyAgent(
-        name="User", 
-    )
-    
-    # Create a termination condition
-    termination = TextMentionTermination("TERMINATE")
-    
-    # Set up the team chat with round-robin style
-    team_chat = RoundRobinGroupChat(
-        participants=[user, chef_bot],
-        termination_condition=termination
-    )
-    
-    # Run the conversation with streaming output
-    task = "我有鸡蛋和西红柿，还有一点葱，我能做什么传统的中国菜？"
-    await Console(team_chat.run_stream(task=task))
-    
-    # Clean up resources
-    await model_client.close()
+# ----------------------------------------------------------------------------
+# Async answer generator: returns final reply string for UI
+# ----------------------------------------------------------------------------
+async def answer_query(question: str) -> str:  # noqa: D401
+    """Retrieve relevant passages & ask the LLM to craft a helpful reply."""
+    logger.info("User question received: %s", question)
 
+    # (1) Retrieve context via RAG
+    rag_result = await _ingredient_query(question)
+    context = rag_result.content
+
+    # ---- SAVE the RAG passages so you can inspect them later -------------
+    out_dir = Path("debug_ctx")
+    out_dir.mkdir(exist_ok=True)
+    (out_dir / f"context_.txt").write_text(context, encoding="utf-8")
+    logger.info("Retrieved %d chars of context (saved to %s)",
+                len(context), out_dir)
+
+    # (2) Compose system / user messages for OpenAI chat completion
+    prompt_messages = [
+        {
+            "role": "system",
+            "content": (
+"You are a professional Chinese culinary assistant. \nYou help users find Chinese dishes they can cook with their available ingredients.\n"
+"When the user provides ingredients:\n"
+"1. First use the `ingredient_query` tool to find matching or related Chinese dishes. This will return a RagResult object.\n"
+"2. Then use the `get_recipe_details` tool with this RagResult object to retrieve the detailed recipe information.\n"
+"3. Based on this information, suggest concrete dish names and briefly explain how the user's ingredients fit the dish.\n"
+"4. If some important ingredients are missing, kindly point out the missing ingredients, and mention whether they are critical or optional.\n"
+"5. If the user's input ingredients are extremely abnormal or unrelated to Chinese cooking, politely reply that the ingredients are not expected or related to the available Chinese recipes.\n"
+"Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
+"End your response with TERMINATE when finished.\n"
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"The user has these ingredients / question:\n{question}\n\n"
+                f"Here are relevant recipe excerpts (Chinese):\n{context}\n\n"
+                "Please suggest specific Chinese dishes, explain how the given "
+                "ingredients fit, and point out any missing critical vs. optional "
+                "ingredients. Reply in Chinese."
+            ),
+        },
+    ]
+    logger.info("Prompt messages prepared for OpenAI API call")
+    logger.debug("Prompt messages: %s", prompt_messages)
+    # (3) Call OpenAI – run sync client in executor so we remain async
+    loop = asyncio.get_running_loop()
+
+    def _openai_call():
+        return openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=prompt_messages,
+            temperature=0.7,
+        )
+
+    try:
+        completion = await loop.run_in_executor(None, _openai_call)
+        answer = completion.choices[0].message.content.strip()
+    except Exception as err:
+        logger.exception("OpenAI generation failed: %s", err)
+        answer = (
+            "抱歉，我在生成答案时遇到问题。如果方便，请稍后再试，"
+            "或检查 API 设置是否正确。"
+        )
+
+    return answer
+
+# ----------------------------------------------------------------------------
+# Entrypoint: start the interactive chat loop using tools.ui
+# ----------------------------------------------------------------------------
 if __name__ == "__main__":
-    asyncio.run(main())
+    from tools import ui  # local import to avoid circular deps when ui imports us
+
+    # Run until user types "exit" / Ctrl‑C
+    asyncio.run(ui.chat_loop(answer_query))

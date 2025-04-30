@@ -57,7 +57,16 @@ secrets.txt
 
 # Ignore everything in logs/ except keep the folder
 logs/*
+<<<<<<< HEAD
 !logs/.gitkeep
 *.pkl
 *.faiss
 >>>>>>> 3aa801ea8c544b49b0078c7f0e7f5d05f9d1cf58
+=======
+!logs/.gitkeep
+>>>>>>> 532139467ecd54d7b1b2d87a4e9346915846ab51
+
+node_modules/
+.vscode/
+__pycache__/
+.idea/
