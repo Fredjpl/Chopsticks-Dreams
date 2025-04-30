@@ -8,6 +8,7 @@ each bot reply for better readability.
 import sys
 import os
 import asyncio
+from tools.ui_memory import ConversationMemory
 
 # Optional color support (use colorama if available for Windows, otherwise ANSI)
 COLOR_ENABLED = False
@@ -86,6 +87,7 @@ async def chat_loop(get_response):
     """
     # Welcome message
     print("Welcome to ChefBot! Ask me anything about Chinese recipes.\n")
+    memory = ConversationMemory(max_history=5) 
     # Loop for user queries
     while True:
         # 1. Get user input (with prompt). Trim it for safety.
@@ -101,13 +103,14 @@ async def chat_loop(get_response):
         # 2. Display the user's message in the conversation log
         display_user_message(user_query)
 
-        # 3. Get the bot's response (call the provided function, which may be sync or async)
+        # 3. Prepare conversation context and get the bot’s response
+        context_str = memory.get_context()
         try:
             if asyncio.iscoroutinefunction(get_response):
-                bot_reply = await get_response(user_query)
+                bot_reply = await get_response(user_query, context_str)
             else:
                 # If get_response is a normal function, run it in a thread to avoid blocking.
-                bot_reply = await asyncio.get_event_loop().run_in_executor(None, get_response, user_query)
+                bot_reply = await asyncio.get_event_loop().run_in_executor(None, get_response, user_query, context_str)
         except Exception as e:
             # Handle any errors during retrieval/response generation
             error_msg = f"[Error] {e}"
@@ -119,7 +122,8 @@ async def chat_loop(get_response):
             # Continue to next iteration (prompt user again)
             continue
 
-        # 4. Display the bot's response in the conversation log
+        # 4. Store + display the bot’s response
+        memory.add_interaction(user_query, bot_reply)
         display_bot_message(bot_reply)
 
         # 5. Pause for the user to read the answer, before next prompt
