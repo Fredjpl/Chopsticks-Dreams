@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python cache
 __pycache__/
 *.pyc
@@ -44,3 +45,19 @@ dist/
 *.egg-info/
 
 # Now ignore PDF and Excel files
+=======
+# Ignore all .log files
+*.log
+
+# Ignore the /build directory
+build/
+
+# Ignore a specific file
+secrets.txt
+
+# Ignore everything in logs/ except keep the folder
+logs/*
+!logs/.gitkeep
+*.pkl
+*.faiss
+>>>>>>> 3aa801ea8c544b49b0078c7f0e7f5d05f9d1cf58

@@ -1,0 +1,28 @@
+# --- core agent framework -------------
+autogen-core
+autogen-agentchat
+autogen-ext
+
+# --- LLM & embedding clients ----------
+openai
+cohere
+langchain
+langchain-community          # BM25Retriever
+langchain-openai             # OpenAIEmbeddings wrapper
+
+# --- vector store ---------------------
+faiss-cpu                    # CPU-only build; swap for faiss-gpu if needed
+
+# --- PDF & text processing ------------
+pdfplumber
+PyPDF2
+jieba
+
+# --- ML / numeric ---------------------
+torch                         # used only for torch.cuda.empty_cache()
+numpy
+
+# --- misc utilities -------------------
+tqdm
+
+rank_bm25
