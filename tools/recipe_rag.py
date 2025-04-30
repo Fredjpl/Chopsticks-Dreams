@@ -109,7 +109,7 @@ async def _ingredient_query(question: str) -> RagResult:
 # ----------------------------------------------------------------------------
 # Async answer generator: returns final reply string for UI
 # ----------------------------------------------------------------------------
-async def answer_query(question: str) -> str:  # noqa: D401
+async def answer_query(question: str, history: str | None = None) -> str:  # noqa: D401
     """Retrieve relevant passages & ask the LLM to craft a helpful reply."""
     logger.info("User question received: %s", question)
 
@@ -140,6 +140,17 @@ async def answer_query(question: str) -> str:  # noqa: D401
 "End your response with TERMINATE when finished.\n"
             ),
         },
+    *(
+        [{
+            "role": "system",
+            "content": (
+                "Here is the recent conversation for context "
+                "(do **not** repeat verbatim; use only if it helps "
+                "answer follow-up questions):\n"
+                f"{history.strip()[:3000]}"      # trim if you like
+            ),
+        }] if history else []
+    ),
         {
             "role": "user",
             "content": (
@@ -147,7 +158,7 @@ async def answer_query(question: str) -> str:  # noqa: D401
                 f"Here are relevant recipe excerpts (Chinese):\n{context}\n\n"
                 "Please suggest specific Chinese dishes, explain how the given "
                 "ingredients fit, and point out any missing critical vs. optional "
-                "ingredients. Reply in Chinese."
+                "ingredients. Reply in English."
             ),
         },
     ]
