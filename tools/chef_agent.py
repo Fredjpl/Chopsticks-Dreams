@@ -137,18 +137,18 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "3. Based on this information, suggest concrete dish names and briefly explain how the user's ingredients fit the dish.\n"
 "4. If some important ingredients are missing, kindly point out the missing ingredients, and mention whether they are critical or optional.\n"
 "5. If the user's input ingredients are extremely abnormal or unrelated to Chinese cooking, politely reply that the ingredients are not expected or related to the available Chinese recipes.\n"
-"6. If the user shows intention or explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after END) in the exact format:\n"
+"6. If the user shows intention or explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after TERMINATE) in the exact format:\n"
 "   YOUTUBE_SEARCH: <dish-name-in-Chinese-or-English>\n"
 "   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
 "   **You MUST output this line if and only if the intent is clear.**\n"
-"7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
-"   append a single line at the very end (after END) in the exact format:\n"
+"7. If the user shows intention or explicitly wants to **buy the missing ingredients**,\n"
+"   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
 "   • Only list the critical-missing items.\n"
 "   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
 "     the line.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
-"End your response with END when finished.\n"
+"End your response with TERMINATE when finished.\n"
             ),
         },
     *(

@@ -33,7 +33,6 @@
       animation: fadeIn 0.8s ease-out;
     }
     .card-header {
-      background: url('https://source.unsplash.com/600x200/?food') center/cover;
       text-align: center;
       padding: 2rem;
       color: #fff;
@@ -171,6 +170,34 @@
       };
     };
 
+    function containsGroceryTrigger(text){
+      const m = text.match(/GROCERY_SEARCH:\s*(\[[^\]]+\])/);
+      if(!m) return null;
+      try {
+        // ① replace single → double quotes, ② strip any extra whitespace
+        const jsonLike = m[1].replace(/'/g, '"').replace(/\s+/g,'');
+        return JSON.parse(jsonLike);
+      } catch(e){
+        console.error("Cannot parse GROCERY_SEARCH payload:", e);
+        return null;
+      }
+    }
+
+    async function handleGrocery(items){
+      const zip = prompt(
+          "Great! Enter your ZIP / postcode so I can find nearby stores:");
+      if(!zip) return;
+      const r = await fetch("/api/grocery", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({zip, items})
+      });
+      const j = await r.json();
+      out.textContent += `\n\nNearest stores for ${items.join(", ")} @${zip}:\n`
+                      + (j.stores || j.error);
+    }
+
+
     // Send data
     sendBtn.onclick = async () => {
       sendBtn.disabled = true;
@@ -201,6 +228,9 @@
         out.scrollTop = out.scrollHeight;
         txt.value = '';
         imgInp.value = null;
+
+        const items = containsGroceryTrigger(j.response||"");
+        if(items) handleGrocery(items);
       } catch (err) {
         out.innerHTML += `<div class='mb-3 text-danger'><strong>Error:</strong> ${err.message}</div>`;
       } finally {
