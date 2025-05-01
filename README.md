@@ -51,7 +51,7 @@ export COHERE_API_KEY=""
 ```
 ## Program launch
 ```bash
-python3 -m server.server
+python -m server.server
 ```
 
 #### Innovation
