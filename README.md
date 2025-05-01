@@ -41,7 +41,7 @@ export OPENAI_API_KEY="sk-…"
 # Google map api
 export GOOGLEMAP_API=""
 # Goolgle service api to get fetch youtube videos
-export GOOGLE_KEY=""
+export GOOGLE_API=""
 # Whisper api, the servise is deployed on Azure portal
 export SPEECH_KEY=""
 # Whisper api servise location
