@@ -29,3 +29,9 @@ rank_bm25
 
 # --- google api -----
 google-api-python-client
+
+flask
+flask-cors
+pyaudio
+azure-cognitiveservices-speech 
+

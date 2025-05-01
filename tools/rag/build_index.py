@@ -6,7 +6,6 @@ Run **once**, or whenever the PDF changes.
 
 from pathlib import Path
 from langchain.schema import Document
-import os
 
 from tools.rag.pdf_parse import DataProcess
 from tools.rag.bm25_retriever import BM25

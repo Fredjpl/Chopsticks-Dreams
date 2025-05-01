@@ -11,6 +11,8 @@ from tools.audio.speech_to_text import transcribe_audio
 from tools.grocery_search.grocery_helper import search_grocery_store_nearby
 import tempfile, subprocess, mimetypes
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 # SINGLE instance – point to front_end
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # project root
 FRONT_DIR = os.path.join(BASE_DIR, "front_end")
