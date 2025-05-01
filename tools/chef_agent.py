@@ -155,7 +155,6 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
 "     the line.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
-"End your response with TERMINATE when finished.\n"
             ),
         },
     *(
