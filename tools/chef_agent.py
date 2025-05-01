@@ -125,13 +125,6 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
     rag_result = await _ingredient_query(question)
     context = rag_result.content
 
-    # ---- SAVE the RAG passages so you can inspect them later -------------
-    out_dir = Path("debug_ctx")
-    out_dir.mkdir(exist_ok=True)
-    (out_dir / f"context_.txt").write_text(context, encoding="utf-8")
-    logger.info("Retrieved %d chars of context (saved to %s)",
-                len(context), out_dir)
-
     # (2) Compose system / user messages for OpenAI chat completion
     prompt_messages = [
         {
@@ -151,7 +144,6 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
-"   (Example:  GROCERY_SEARCH: ['green bell pepper', 'sesame oil'])\n"
 "   • Only list the critical-missing items.\n"
 "   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
 "     the line.\n"
@@ -181,8 +173,6 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
             ),
         },
     ]
-    logger.info("Prompt messages prepared for OpenAI API call")
-    logger.debug("Prompt messages: %s", prompt_messages)
     # (3) Call OpenAI – run sync client in executor so we remain async
     loop = asyncio.get_running_loop()
 
