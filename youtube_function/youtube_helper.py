@@ -14,8 +14,7 @@ def search_youtube_recipes(dish_name: str, api_key: str, max_results: int = 5):
     """
     youtube = build('youtube', 'v3', developerKey=api_key)
 
-    # 构造搜索关键词
-    query = f"{dish_name} 做饭 教学"
+    query = f"{dish_name} teaching tutorial"
 
     request = youtube.search().list(
         q=query,

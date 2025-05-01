@@ -26,3 +26,6 @@ numpy
 tqdm
 
 rank_bm25
+
+# --- google api -----
+google-api-python-client
