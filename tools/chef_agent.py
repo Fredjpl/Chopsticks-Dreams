@@ -141,7 +141,7 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "   YOUTUBE_SEARCH: <dish-name-in-Chinese-or-English>\n"
 "   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
 "   **You MUST output this line if and only if the intent is clear.**\n"
-"7. If the user shows intention or explicitly wants to **buy the missing ingredients**,\n"
+"7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
 "   • Only list the critical-missing items.\n"

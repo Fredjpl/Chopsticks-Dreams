@@ -1,9 +1,9 @@
 # server.py
 import os
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import os
+
 from .agent import get_response             
 from tools.entity_recognition.ingredient_recognition import ingredients_detector
 from tools.audio.speech_to_text import transcribe_audio
@@ -30,7 +30,7 @@ os.makedirs(UPLOAD_DIR)
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 SPEECH_KEY     = os.environ["SPEECH_KEY"]
 SPEECH_REGION  = os.environ["SPEECH_REGION"]
-
+GOOGLEMAP_API  = os.environ["GOOGLEMAP_API"]
 if not SPEECH_KEY or not SPEECH_REGION:
     raise RuntimeError("SPEECH_KEY / SPEECH_REGION not set in environment")
 
@@ -38,6 +38,12 @@ CORS(app)  # allow index.html (file:// or other port) to talk to this server
 
 def _session_id() -> str:
     return request.cookies.get("sid") or request.remote_addr or "anon"
+
+@app.route('/api/config')
+def config():
+    return jsonify({
+      "googlemaps_api_key": GOOGLEMAP_API
+    })
 
 # Serve your index.html at the root
 @app.route("/")
