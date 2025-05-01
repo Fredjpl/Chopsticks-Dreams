@@ -3,7 +3,7 @@ import os
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-
+import os
 from .agent import get_response             
 from tools.entity_recognition.ingredient_recognition import ingredients_detector
 from tools.audio.speech_to_text import transcribe_audio
@@ -14,6 +14,8 @@ import tempfile, subprocess, mimetypes
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # project root
 FRONT_DIR = os.path.join(BASE_DIR, "front_end")
 app = Flask(__name__, static_folder=FRONT_DIR, static_url_path="")
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # CONFIGURATION
 UPLOAD_DIR = "uploads"
 # purge old files on start, create fresh dir
