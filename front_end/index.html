@@ -172,14 +172,16 @@
 
     // Google Maps variables
     let map, geocoder, markers = [];
+    let mapReady = false;
 
     function initMap() {
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 41.8781, lng: -87.6298 },
-        zoom: 12
-      });
-      geocoder = new google.maps.Geocoder();
-    }
+    map      = new google.maps.Map(document.getElementById('map'), {
+      center: { lat: 41.8781, lng: -87.6298 },
+      zoom  : 12
+    });
+    geocoder = new google.maps.Geocoder();
+    mapReady = true;        
+  }
 
     // Load Google Maps script dynamically from backend-provided key
     async function loadMapScript() {
@@ -208,26 +210,41 @@
     }
 
     function displayStoresOnMap(stores) {
-      clearMarkers();
-      const bounds = new google.maps.LatLngBounds();
-      stores.forEach(store => {
-        geocoder.geocode({ address: store.address }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const location = results[0].geometry.location;
-            const marker = new google.maps.Marker({
-              map,
-              position: location,
-              title: store.name
-            });
-            markers.push(marker);
-            bounds.extend(location);
-            map.fitBounds(bounds);
-          } else {
-            console.warn(`Geocode failed for ${store.address}: ${status}`);
-          }
-        });
-      });
+    if (!mapReady) {              // <— guard #1: wait until the map exists
+      console.warn("Map not ready yet; postponing.");
+      setTimeout(() => displayStoresOnMap(stores), 300);  // try again shortly
+      return;
     }
+
+    clearMarkers();
+    const bounds = new google.maps.LatLngBounds();
+
+    const addMarker = (pos, title) => {
+      const marker = new google.maps.Marker({ map, position: pos, title });
+      markers.push(marker);
+      bounds.extend(pos);
+      map.fitBounds(bounds);      // safe: runs once per marker, accumulates
+    };
+
+    stores.forEach(store => {
+      /* Use backend-supplied coordinates if present */
+      if (store.lat != null && store.lng != null) {
+        addMarker({ lat: store.lat, lng: store.lng }, store.name);
+        return;
+      }
+
+      /* Fallback: geocode the address */
+      if (!geocoder) return;      // guard #2 (shouldn’t fire, but belt-and-suspenders)
+
+      geocoder.geocode({ address: store.address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          addMarker(results[0].geometry.location, store.name);
+        } else {
+          console.warn(`Geocode failed for ${store.address}: ${status}`);
+        }
+      });
+    });
+  }
 
     function containsGroceryTrigger(text){
       const m = text.match(/GROCERY_SEARCH:\s*(\[[^\]]+\])/);
@@ -251,12 +268,16 @@
           body:JSON.stringify({zip, items})
       });
       const j = await r.json();
+      console.log(j)
       out.innerHTML += `<div class='mb-3'><strong>Stores near ${items.join(", ")} @${zip}:</strong></div>`;
-      if (j.stores) {
-        j.stores.forEach(s => {
-          out.innerHTML += `<div>${s.name} — ${s.address} ${s.open_now? '(Open)': '(Closed)'}</div>`;
+
+      const storeArr = Object.values(j.stores || {}).flat();
+
+      if (storeArr.length) {
+        storeArr.forEach(s => {
+          out.innerHTML += `<div>${s.name} — ${s.address} ${s.open_now ? '(Open)' : '(Closed)'}</div>`;
         });
-        displayStoresOnMap(j.stores);
+        displayStoresOnMap(storeArr);   // note: pass storeArr, not j.stores
       } else if (j.error) {
         out.innerHTML += `<div class='text-danger'>${j.error}</div>`;
       }

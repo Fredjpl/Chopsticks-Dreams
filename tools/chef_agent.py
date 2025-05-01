@@ -151,6 +151,7 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
+"   (Example:  GROCERY_SEARCH: ['green bell pepper', 'sesame oil'])\n"
 "   • Only list the critical-missing items.\n"
 "   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
 "     the line.\n"
