@@ -28,6 +28,13 @@ from tools.rag.faiss_retriever import FaissRetriever
 from tools.rag.rerank_api import APIReranker
 
 # ----------------------------------------------------------------------------
+# youtube_search: helper function to extract dish name from the answer
+# ----------------------------------------------------------------------------
+from tools.youtube_video_recommender import youtube_helper
+import re
+from typing import List
+
+# ----------------------------------------------------------------------------
 # Logging (quiet by default – enable in your main app if you want)
 # ----------------------------------------------------------------------------
 logger = logging.getLogger(__name__)
@@ -136,6 +143,12 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "3. Based on this information, suggest concrete dish names and briefly explain how the user's ingredients fit the dish.\n"
 "4. If some important ingredients are missing, kindly point out the missing ingredients, and mention whether they are critical or optional.\n"
 "5. If the user's input ingredients are extremely abnormal or unrelated to Chinese cooking, politely reply that the ingredients are not expected or related to the available Chinese recipes.\n"
+"6. If critical ingredients are missing, add the JSON block described earlier.\n"
+"7. If the user explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after TERMINATE) in the exact format:\n"
+"   YOUTUBE_SEARCH: <dish-name-in-Chinese-or-English>\n"
+"   (Example:  YOUTUBE_SEARCH: 虎皮青椒)\n"
+"   **You MUST output this line if and only if the intent is clear.**\n"
+"   • If the request is ambiguous, first ask a clarifying question instead of outputting the line.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
 "End your response with TERMINATE when finished.\n"
             ),
@@ -180,10 +193,31 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
     except Exception as err:
         logger.exception("OpenAI generation failed: %s", err)
         answer = (
-            "抱歉，我在生成答案时遇到问题。如果方便，请稍后再试，"
-            "或检查 API 设置是否正确。"
+            "Sorry, I couldn't generate a response. "
+            "Please try again later, "
+            "or check your API settings.\n"
         )
-
+    # ─────────────────────────  Post-process YOUTUBE_SEARCH  ─────────────────────────
+    m = re.search(r"^YOUTUBE_SEARCH:\s*(.+)$", answer, re.MULTILINE)
+    if m:
+        dish_name = m.group(1).strip()
+        try:
+            vids = youtube_helper.search_youtube_recipes(dish_name, max_results=5)
+            links = "\n".join(f"- {v['title']}: {v['url']}" for v in vids)
+            replacement = (
+                f"Here are some useful YouTube tutorials for **{dish_name}**:\n"
+                f"{links}"
+            )
+            answer = re.sub(r"^YOUTUBE_SEARCH:.*$", replacement, answer, flags=re.MULTILINE)
+        except Exception as e:
+            logger.error("YouTube search failed: %s", e)
+            # fall back to plain text notice
+            answer = re.sub(
+                r"^YOUTUBE_SEARCH:.*$",
+                "(Sorry, I couldn't fetch video links right now.)",
+                answer,
+                flags=re.MULTILINE,
+            )
     return answer
 
 # ----------------------------------------------------------------------------
