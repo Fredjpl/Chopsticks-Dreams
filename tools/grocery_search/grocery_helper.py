@@ -32,8 +32,10 @@ def search_grocery_store_nearby(zipcode, item_list, radius=3000):
             results.append({
                 'name': place['name'],
                 'address': place.get('vicinity'),
+                "lat"      : place["geometry"]["location"]["lat"],
+                "lng"      : place["geometry"]["location"]["lng"],
                 'open_now': place.get('opening_hours', {}).get('open_now', 'Unknown'),
             })
         results_by_item[item] = results[:5]
 
-    return json.dumps(results_by_item, ensure_ascii=False, indent=2)
+    return results_by_item
