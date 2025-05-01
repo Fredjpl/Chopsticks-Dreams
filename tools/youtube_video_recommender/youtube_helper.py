@@ -1,7 +1,6 @@
 import os
 from googleapiclient.discovery import build
 
-
 def search_youtube_recipes(dish_name: str, max_results: int = 5):
     api_key = os.environ.get("GOOGLE_API")
     if not api_key:
