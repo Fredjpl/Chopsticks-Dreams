@@ -3,7 +3,6 @@ import os
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import asyncio
 
 from .agent import get_response             
 from tools.entity_recognition.ingredient_recognition import ingredients_detector

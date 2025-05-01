@@ -24,7 +24,35 @@ Our agent is targeted at **home cooks, students, and busy individuals** who want
 4. **Cooking Video & Smart Grocery Suggestions**: Our agent can recognize user's intention and interest in a recipe, then fetches **relevant YouTube videos** using the **YouTube Data API** to provide visual step-by-step cooking guidance and recommends **nearby grocery stores** where you can buy missing items.
 
 #### How to Run
+```bash
+git clone https://github.com/Fredjpl/Chopsticks-Dreams.git
+cd Chopsticks-Dreams
+```
+```bash
+conda create --name chef_agent
+conda activate chef_agent
 
+# install python deps
+pip install -r requirements.txt
+```
+```bash
+# export your openai api key first
+export OPENAI_API_KEY="sk-…"
+# Google map api
+export GOOGLEMAP_API=""
+# Goolgle service api to get fetch youtube videos
+export GOOGLE_KEY=""
+# Whisper api, the servise is deployed on Azure portal
+export SPEECH_KEY=""
+# Whisper api servise location
+export SPEECH_REGION =""
+# Coherence has the top-level bilingual rerank model
+export COHERE_API_KEY=""
+```
+## Program launch
+```bash
+python3 -m server.server
+```
 
 #### Innovation
 

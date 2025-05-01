@@ -1,7 +1,5 @@
 import os
 from googleapiclient.discovery import build
-import pandas as pd
-import json
 
 def search_youtube_recipes(dish_name: str, max_results: int = 5):
     api_key = os.environ.get("GOOGLE_API")
