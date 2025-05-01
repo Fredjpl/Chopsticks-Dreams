@@ -31,6 +31,7 @@ from tools.rag.rerank_api import APIReranker
 # youtube_search: helper function to extract dish name from the answer
 # ----------------------------------------------------------------------------
 from tools.youtube_video_recommender import youtube_helper
+from tools.grocery_search import grocery_helper
 import re
 from typing import List
 
@@ -143,12 +144,16 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "3. Based on this information, suggest concrete dish names and briefly explain how the user's ingredients fit the dish.\n"
 "4. If some important ingredients are missing, kindly point out the missing ingredients, and mention whether they are critical or optional.\n"
 "5. If the user's input ingredients are extremely abnormal or unrelated to Chinese cooking, politely reply that the ingredients are not expected or related to the available Chinese recipes.\n"
-"6. If critical ingredients are missing, add the JSON block described earlier.\n"
-"7. If the user explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after TERMINATE) in the exact format:\n"
+"6. If the user shows intention or explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after TERMINATE) in the exact format:\n"
 "   YOUTUBE_SEARCH: <dish-name-in-Chinese-or-English>\n"
-"   (Example:  YOUTUBE_SEARCH: 虎皮青椒)\n"
+"   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
 "   **You MUST output this line if and only if the intent is clear.**\n"
-"   • If the request is ambiguous, first ask a clarifying question instead of outputting the line.\n"
+"7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
+"   append a single line at the very end (after TERMINATE) in the exact format:\n"
+"     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
+"   • Only list the critical-missing items.\n"
+"   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
+"     the line.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
 "End your response with TERMINATE when finished.\n"
             ),
@@ -160,7 +165,7 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
                 "Here is the recent conversation for context "
                 "(do **not** repeat verbatim; use only if it helps "
                 "answer follow-up questions):\n"
-                f"{history.strip()[:3000]}"      # trim if you like
+                f"{history.strip()[:5000]}"      # trim if you like
             ),
         }] if history else []
     ),
@@ -218,6 +223,31 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
                 answer,
                 flags=re.MULTILINE,
             )
+
+    # ─────────────────────────  Post-process GROCERY_SEARCH  ───────────────────
+    g = re.search(r'^GROCERY_SEARCH:\s*(\[[^\]]+\])', answer, re.MULTILINE)
+
+    if g:
+        # ensure double quotes before it reaches the browser
+        fixed = g.group(1).replace("'", '"')
+        answer = answer.replace(g.group(1), fixed)
+
+        # leave the trigger line intact; the front-end will read it and
+        # prompt for ZIP code
+
+    #     try:
+    #         vids = grocery_helper.search_grocery_store_nearby(zipcode, missing_ingredients, radius=3500)
+    #         answer = re.sub(r'^GROCERY_SEARCH:', 'MISSING_INGREDIENTS:', answer,
+    #                     flags=re.MULTILINE)
+        # except Exception as e:
+        #     logger.error("Grocery search failed: %s", e)
+        #     # fall back to plain text notice
+        #     answer = re.sub(
+        #         r"^GROCERY_SEARCH:.*$",
+        #         "(Sorry, I couldn't fetch Grocery places right now.)",
+        #         answer,
+        #         flags=re.MULTILINE,
+        #     ) 
     return answer
 
 # ----------------------------------------------------------------------------

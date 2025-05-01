@@ -4,19 +4,6 @@ import pandas as pd
 import json
 
 def search_youtube_recipes(dish_name: str, max_results: int = 5):
-    """
-    搜索与指定菜名相关的做菜教学视频（YouTube）。
-
-    参数：
-    - dish_name (str): 菜名，例如 "泰国绿咖喱"
-    - max_results (int): 返回的最大视频数量，默认5个
-
-    环境变量：
-    - GOOGLE_API: 你的 YouTube Data API 密钥
-
-    返回：
-    - List[Dict]: 包含视频标题和链接的列表
-    """
     api_key = os.environ.get("GOOGLE_API")
     if not api_key:
         raise EnvironmentError("Environment variable 'GOOGLE_API' not set.")

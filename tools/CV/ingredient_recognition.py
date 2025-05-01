@@ -56,5 +56,3 @@ def ingredients_detector(image_path: str) -> str:
     return response.choices[0].message.content
 
 
-
-print(ingredients_detector("/home/kree/Chopsticks-Dreams/data/pic1.jpg"))

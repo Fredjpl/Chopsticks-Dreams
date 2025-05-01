@@ -90,11 +90,31 @@ async def chat_loop(get_response):
     memory = ConversationMemory(max_history=5) 
     # Loop for user queries
     while True:
-        # 1. Get user input (with prompt). Trim it for safety.
+        # 1. Get raw user input
         user_query = prompt_user()
         if user_query is None:
             continue  # just in case, though input() returns "" not None on Enter
         user_query = user_query.strip()
+        # # ------------------------------------------------------------------
+        # #  NEW: recognise   img: <path>   or   img: <path> | <extra text>
+        # # ------------------------------------------------------------------
+        # img_path = None
+        # extra_text = ""
+        # m = re.match(r"img:\s*([^|]+?)(?:\s*\|\s*(.+))?$", user_query, re.I)
+        # if m:
+        #     img_path = m.group(1).strip()
+        #     extra_text = (m.group(2) or "").strip()
+        #     try:
+        #         detected = ingredients_detector(img_path)          # JSON string
+        #     except Exception as e:
+        #         display_bot_message(f"[Vision error] {e}")
+        #         continue
+
+        #     if extra_text:
+        #         user_query = f"{extra_text}\n\nDetected ingredients: {detected}"
+        #     else:
+        #         user_query = f"Detected ingredients: {detected}"
+
         # Check exit conditions
         if user_query.lower() in {"exit", "quit", "q"}:
             print("Goodbye! 👋")

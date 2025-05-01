@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>ChefBot Demo</title>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background: url('background.jpg') center/cover fixed no-repeat;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 600px;
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.95);
+      animation: fadeIn 0.8s ease-out;
+    }
+    .card-header {
+      background: url('https://source.unsplash.com/600x200/?food') center/cover;
+      text-align: center;
+      padding: 2rem;
+      color: #fff;
+    }
+    .card-header h2 {
+      margin: 0;
+      font-weight: 600;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+      color: #ec0000;
+    }
+    .instructions {
+      text-align: center;
+      color: #555;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+    .instructions i {
+      font-size: 1.2rem;
+      margin: 0 0.5rem;
+      vertical-align: middle;
+    }
+    .card-body {
+      padding: 2rem;
+    }
+    .form-label {
+      font-weight: 500;
+      color: #444;
+    }
+    .form-control {
+      border-radius: 0.5rem;
+      transition: box-shadow 0.3s;
+    }
+    .form-control:focus {
+      box-shadow: 0 0 8px rgba(0, 123, 255, 0.25);
+    }
+    #out {
+      white-space: pre-wrap;
+      max-height: 250px;
+      overflow-y: auto;
+      background-color: #f0f4f8;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border: none;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .btn {
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: transform 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h2>Cook From What You Have</h2>
+    </div>
+    <div class="card-body">
+      <div class="instructions">
+        <i class="bi bi-list-check"></i> Tell us what ingredients you have &nbsp;|
+        <i class="bi bi-camera-fill"></i> Take a picture to recognize ingredients &nbsp;|
+        <i class="bi bi-mic-fill"></i> Click to speak
+      </div>
+      <form id="chatForm">
+        <div class="mb-4">
+          <label for="imgInp" class="form-label"><i class="bi bi-camera"></i> Upload Image</label>
+          <input class="form-control" id="imgInp" type="file" accept="image/*">
+        </div>
+        <div class="mb-4">
+          <label for="txt" class="form-label"><i class="bi bi-chat-text"></i> Your Message</label>
+          <textarea class="form-control" id="txt" rows="3" placeholder="Type your ingredients or question here..."></textarea>
+        </div>
+        <div class="mb-4 d-flex gap-3 align-items-center">
+          <button id="recBtn" type="button" class="btn btn-outline-primary">
+            <i class="bi bi-mic-fill"></i> Record
+          </button>
+          <button id="stopBtn" type="button" class="btn btn-outline-danger" disabled>
+            <i class="bi bi-stop-fill"></i> Stop
+          </button>
+          <span id="recStatus"></span>
+        </div>
+        <div class="d-grid">
+          <button id="sendBtn" type="button" class="btn btn-primary btn-lg">
+            <i class="bi bi-send-fill me-2"></i> Send
+          </button>
+        </div>
+      </form>
+      <small class="d-block text-center text-muted mt-3">You can keep asking how to cook any dish!</small>
+      <hr>
+      <h5 class="mt-4" style="color: #333;"><i class="bi bi-journal-text"></i> Conversation</h5>
+      <div id="out"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const imgInp = document.getElementById("imgInp");
+    const txt = document.getElementById("txt");
+    const recBtn = document.getElementById("recBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const recStatus = document.getElementById("recStatus");
+    const sendBtn = document.getElementById("sendBtn");
+    const out = document.getElementById("out");
+    let mediaRecorder, audioChunks = [];
+
+    // Start recording
+    recBtn.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.start();
+      recStatus.textContent = "Recording...";
+      recBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    // Stop recording
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      mediaRecorder.onstop = () => {
+        recStatus.textContent = "Recorded ✓";
+        recBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+    };
+
+    // Send data
+    sendBtn.onclick = async () => {
+      sendBtn.disabled = true;
+      let url, body, headers = {};
+      if (imgInp.files[0]) {
+        url = "/api/image";
+        body = new FormData();
+        body.append("image", imgInp.files[0]);
+      } else if (audioChunks.length) {
+        url = "/api/speech";
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        body = new FormData();
+        body.append("audio", blob, `record.${mediaRecorder.mimeType.includes("webm") ? "webm" : "ogg"}`);
+        audioChunks = [];
+        recStatus.textContent = "";
+      } else {
+        url = "/api/text";
+        body = JSON.stringify({ text: txt.value.trim() });
+        headers["Content-Type"] = "application/json";
+      }
+
+      try {
+        const r = await fetch(url, { method: "POST", body, headers });
+        const j = await r.json();
+        const userEntry = txt.value.trim() || (imgInp.files[0]?.name || 'audio');
+        const botReply = j.response || j.error || '';
+        out.innerHTML += `<div class='mb-3'><strong>You:</strong> ${userEntry}<br><strong>ChefBot:</strong> ${botReply}</div>`;
+        out.scrollTop = out.scrollHeight;
+        txt.value = '';
+        imgInp.value = null;
+      } catch (err) {
+        out.innerHTML += `<div class='mb-3 text-danger'><strong>Error:</strong> ${err.message}</div>`;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
