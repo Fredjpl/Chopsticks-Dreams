@@ -25,9 +25,6 @@ Our agent is targeted at **home cooks, students, and busy individuals** who want
 
 #### How to Run
 
-```
-TODO
-```
 
 #### Innovation
 
