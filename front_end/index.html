@@ -251,6 +251,7 @@
           body:JSON.stringify({zip, items})
       });
       const j = await r.json();
+      console.log("Grocery response:", j.stores);
       out.innerHTML += `<div class='mb-3'><strong>Stores near ${items.join(", ")} @${zip}:</strong></div>`;
       if (j.stores) {
         j.stores.forEach(s => {
