@@ -157,13 +157,13 @@ async def chat_loop(get_response):
 if __name__ == "__main__":
     try:
         # Import the recipe RAG answer generator (to integrate with chat loop)
-        from tools import recipe_rag
+        from tools import chef_agent
     except ImportError:
-        recipe_rag = None
+        chef_agent = None
 
-    if recipe_rag and hasattr(recipe_rag, "answer_query"):
+    if chef_agent and hasattr(chef_agent, "answer_query"):
         # Use the answer_query function from recipe_rag if available
-        asyncio.run(chat_loop(recipe_rag.answer_query))
+        asyncio.run(chat_loop(chef_agent.answer_query))
     else:
         # Fallback: echo mode or error if recipe_rag not available
         async def echo_response(msg):

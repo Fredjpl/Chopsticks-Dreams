@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 import asyncio
 
 from .agent import get_response             
-from tools.CV.ingredient_recognition import ingredients_detector
+from tools.entity_recognition.ingredient_recognition import ingredients_detector
 from tools.audio.speech_to_text import transcribe_audio
 from tools.grocery_search.grocery_helper import search_grocery_store_nearby
 import tempfile, subprocess, mimetypes
@@ -65,7 +65,7 @@ def api_image():
     path = os.path.join(UPLOAD_DIR, filename)
     img.save(path)
 
-    # first do CV → text
+    # first do entity_recognition → text
     img_text = ingredients_detector(path)
 
     # then send that to agent
