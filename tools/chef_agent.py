@@ -1,17 +1,14 @@
 """tools/recipe_rag.py — Retrieval‑Augmented Chinese‑recipe assistant
 
-
-This module builds/loads the hybrid BM25 + FAISS indexes (with Cohere
+This module builds/loads the hybrid BM25 + FAISS indexes (with Cohere
 cross‑encoder re‑ranker) once at import‑time, then exposes **`answer_query`** –
 an *async* function that the terminal UI (``tools/ui.py``) calls to answer each
 user question.
-
 
 Running this file directly will drop you into the interactive chat loop that is
 provided by ``tools.ui``.
 """
 from __future__ import annotations
-
 
 import asyncio
 import logging
@@ -20,19 +17,16 @@ from pathlib import Path
 from typing import List
 import datetime
 
-
 import openai  # needs OPENAI_API_KEY env‑var
 client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
-
 
 # ─────────────────────────── RAG building blocks ──────────────────────────
 from tools.rag.pdf_parse import DataProcess
 from tools.rag.bm25_retriever import BM25
 from tools.rag.faiss_retriever import FaissRetriever
 from tools.rag.rerank_api import APIReranker
-
 
 # ----------------------------------------------------------------------------
 # youtube_search: helper function to extract dish name from the answer
@@ -42,12 +36,10 @@ from tools.grocery_search import grocery_helper
 import re
 from typing import List
 
-
 # ----------------------------------------------------------------------------
 # Logging (quiet by default – enable in your main app if you want)
 # ----------------------------------------------------------------------------
 logger = logging.getLogger(__name__)
-
 
 # ----------------------------------------------------------------------------
 # Index / model paths & constants
@@ -58,18 +50,15 @@ INDEX_DIR = ROOT / "indexes"
 BM25_PATH = INDEX_DIR / "bm25.pkl"
 FAISS_PATH = INDEX_DIR / "faiss"
 
-
 EMBED_MODEL = "text-embedding-3-large"  # multilingual – handles Chinese well
 top_k_lex = 20
 top_k_dense = 20
 final_k = 6
 
-
 # ----------------------------------------------------------------------------
 # One‑off index build / load (executed at module import) – no stdout prints
 # ----------------------------------------------------------------------------
 INDEX_DIR.mkdir(parents=True, exist_ok=True)
-
 
 if not (BM25_PATH.exists() and FAISS_PATH.exists()):
     # First run → build indexes (can take a few minutes depending on PDF size)
@@ -77,21 +66,19 @@ if not (BM25_PATH.exists() and FAISS_PATH.exists()):
     dp = DataProcess(PDF_PATH)
     dp.parse(max_seq=512)
     texts: List[str] = dp.data
-   
+    
     bm25_tmp = BM25(texts)
     bm25_tmp.save(BM25_PATH)
-   
+    
     fr_tmp = FaissRetriever(texts, model_name=EMBED_MODEL, chunk_size=128)
     fr_tmp.save(FAISS_PATH)
     del bm25_tmp, fr_tmp  # free mem before loading normally
-
 
 # Load indexes (fast) ----------------------------------------------------------------
 logger.info("Loading indexes …")
 bm25 = BM25.load(BM25_PATH)
 faiss = FaissRetriever.load(FAISS_PATH, model_name=EMBED_MODEL)
 reranker = APIReranker(model="rerank-multilingual-v3.0")
-
 
 # ----------------------------------------------------------------------------
 # Helper Pydantic wrapper so AutoGen / UI prints a short placeholder instead of
@@ -101,10 +88,8 @@ class RagResult(BaseModel):
     content: str
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-
     def __str__(self) -> str:  # noqa: DunderStr: show concise preview in logs
-        return "✅ RAG result (hidden)"
-
+        return "✅ RAG result (hidden)"
 
 # ----------------------------------------------------------------------------
 # Core retrieval routine (async because FAISS + Cohere calls are blocking)
@@ -130,18 +115,27 @@ async def _ingredient_query(question: str) -> RagResult:
     )
     return RagResult(content=formatted)
 
+# ───────────────────────────── topic detector ────────────────────────────
+TOPIC_PAT = re.compile(r"(?:recipe for|make|cook|买|做)\s+([\w\u4e00-\u9fff\s\-]+)",
+                       re.I)
+
+def detect_topic(user_msg: str, ctx: str) -> str | None:
+    """Very lightweight dish / ingredient focus detector."""
+    if m := TOPIC_PAT.search(user_msg):
+        return m.group(1).strip().lower()
+    first = ctx.splitlines()[0].strip()
+    return first.split("．")[0].lower() if first else None
 
 # ----------------------------------------------------------------------------
 # Async answer generator: returns final reply string for UI
 # ----------------------------------------------------------------------------
 async def answer_query(
     question: str,
-    history: list[tuple[str, str]] | None = None,
+    history: list[tuple[str, str]] | None = None, 
     precomputed_context: str | None = None,
 ) -> str:
     """Retrieve relevant passages & ask the LLM to craft a helpful reply."""
     logger.info("User question received: %s", question)
-
 
     # (1) Retrieve or reuse context
     if precomputed_context is not None:
@@ -149,7 +143,6 @@ async def answer_query(
     else:
         rag_result = await _ingredient_query(question)
         context = rag_result.content
-
 
     # (2) Compose system / user messages for OpenAI chat completion
     prompt_messages = [
@@ -227,7 +220,7 @@ async def answer_query(
                 "ingredients. Reply in English."
             ),
         })
-   
+    
         # ─── DEBUG: save full prompt to disk so you can inspect it ────────────
     # Enable/disable simply by setting the env‑var PROMPT_LOG_DIR.
     # debug_dir = "/home/kree/Chopsticks-Dreams/logs"
@@ -236,13 +229,12 @@ async def answer_query(
         from pathlib import Path
         import json, datetime
 
-
         Path(debug_dir).mkdir(parents=True, exist_ok=True)
         ts   = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         fname = f"prompt_{ts}.json"
         with open(Path(debug_dir) / fname, "w", encoding="utf‑8") as f:
             json.dump(prompt_messages, f, ensure_ascii=False, indent=2)
-   
+    
     # (3) Call OpenAI – run sync client in executor so we remain async
     try:
         completion = await client.chat.completions.create(  
@@ -280,20 +272,16 @@ async def answer_query(
                 flags=re.MULTILINE,
             )
 
-
     # ─────────────────────────  Post-process GROCERY_SEARCH  ───────────────────
     g = re.search(r'^GROCERY_SEARCH:\s*(\[[^\]]+\])', answer, re.MULTILINE)
-
 
     if g:
         # ensure double quotes before it reaches the browser
         fixed = g.group(1).replace("'", '"')
         answer = answer.replace(g.group(1), fixed)
 
-
     answer = re.sub(r'\bTERMINATE\b', '', answer).strip()
     return answer, context
-
 
 # ----------------------------------------------------------------------------
 # Entrypoint: start the interactive chat loop using tools.ui
@@ -301,11 +289,5 @@ async def answer_query(
 if __name__ == "__main__":
     from tools import ui  # local import to avoid circular deps when ui imports us
 
-
     # Run until user types "exit" / Ctrl‑C
     asyncio.run(ui.chat_loop(answer_query))
-
-
-
-
-

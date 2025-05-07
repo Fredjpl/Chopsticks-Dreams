@@ -1,32 +1,46 @@
 # tools/gatekeeper.py
 import os, json, datetime
 from pathlib import Path
+import openai
+import tiktoken
 
-
-GK_MODEL = os.getenv("GK_MODEL", "gpt-3.5-turbo-0125")  # cheap + fast
-client   = openai.AsyncOpenAI()
-
+GK_MODEL   = os.getenv("GK_MODEL", "gpt-4o")
+client     = openai.AsyncOpenAI()
+enc        = tiktoken.encoding_for_model(GK_MODEL)
 
 _PROMPT_HEADER = """\
 You are a binary classifier. Decide whether the assistant must refresh
-external recipe knowledge (return "RAG") or can answer from prior
-context alone (return "NO_RAG").
-
+external recipe knowledge (return "RAG") or can answer from prior context
+(return "NO_RAG").
 
 Rules for RAG:
 • The user presents NEW ingredients or a NEW dish name.
 • The user asks to buy ingredients or wants grocery info.
 
-
 Rules for NO_RAG:
 • The user is still talking about the SAME dish/ingredients.
-• Follow‑ups like proportions, timing, videos, re‑phrasing, etc.
-Output exactly one token: RAG  or  NO_RAG
+• Follow-ups like proportions, timing, videos, re-phrasing, etc.
+
+Few-shot:
+USER: I have eggs
+Output: RAG
+
+USER: I want to make Steamed Egg Custard
+Output: RAG
+
+USER: I want to watch a video tutorial for it
+Output: NO_RAG
+
+USER: I want to buy the missing ingredients
+Output: RAG
+
+Your response should exactly: RAG or NO_RAG
+• Do not add any other text.
+• Do not use any other format.
+• Do not use any other language.
 """
 
-
-async def need_rag(full_history: str,
-                   new_msg: str,
+async def need_rag(focus: str, new_msg: str,
                    session_id: str | None = "anon") -> tuple[bool, str]:
     """Returns (need_rag_flag, 'RAG' | 'NO_RAG')."""
     resp = await client.chat.completions.create(
@@ -40,25 +54,16 @@ async def need_rag(full_history: str,
     )
     token = resp.choices[0].message.content.strip().upper()
 
+    # ── debug dump ────────────────────────────────────────────────────────
+    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    Path("logs/gatekeeper").mkdir(parents=True, exist_ok=True)
+    with open(Path("logs/gatekeeper") / f"{session_id}_{ts}.json",
+              "w", encoding="utf-8") as f:
+        json.dump({"timestamp": ts,
+                   "session": session_id,
+                   "decision": token,
+                   "focus": focus,
+                   "user_msg": new_msg},
+                  f, ensure_ascii=False, indent=2)
 
-    # ── debug dump ───────────────────────────────────────────────
-    dbg_dir = Path("logs/gatekeeper"); dbg_dir.mkdir(parents=True, exist_ok=True)
-    ts   = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    with open(dbg_dir / f"{session_id}_{ts}.json", "w", encoding="utf‑8") as f:
-        json.dump(
-            {
-                "timestamp": ts,
-                "session":   session_id,
-                "decision":  token,
-                "prompt":    msg,
-            },
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
-
-
-    return token == "RAG", token        # (bool, raw_token)
-
-
-
+    return token == "RAG", token
