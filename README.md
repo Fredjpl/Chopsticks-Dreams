@@ -11,7 +11,7 @@ We deployed our agent to an Amazon EC2 instance, making it accessible via:
 The backend runs on `Flask`, and the server listens on port `5000`. To access the web interface:
 
 1. Open your browser.
-2. Navigate to the public IP: **http://3.19.22.54**
+2. Navigate to the public IP: **http://3.19.22.54:5000**
 3. Explore the features: upload a grocery photo, speak to the assistant, or ask for recipes.
 
 ### Description
