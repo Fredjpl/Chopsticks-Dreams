@@ -80,10 +80,6 @@ bm25 = BM25.load(BM25_PATH)
 faiss = FaissRetriever.load(FAISS_PATH, model_name=EMBED_MODEL)
 reranker = APIReranker(model="rerank-multilingual-v3.0")
 
-# ----------------------------------------------------------------------------
-# Helper Pydantic wrapper so AutoGen / UI prints a short placeholder instead of
-# the full retrieved passages when debugging.
-# ----------------------------------------------------------------------------
 class RagResult(BaseModel):
     content: str
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -119,12 +115,25 @@ async def _ingredient_query(question: str) -> RagResult:
 TOPIC_PAT = re.compile(r"(?:recipe for|make|cook|买|做)\s+([\w\u4e00-\u9fff\s\-]+)",
                        re.I)
 
+TOPIC_LINE_PAT = re.compile(r"^\s*([A-Za-z\u4e00-\u9fff][^。.\n]{1,30})", re.M)
+
 def detect_topic(user_msg: str, ctx: str) -> str | None:
-    """Very lightweight dish / ingredient focus detector."""
+    """Return a concise dish / food name or None."""
+    # 1) explicit pattern in user message
     if m := TOPIC_PAT.search(user_msg):
         return m.group(1).strip().lower()
-    first = ctx.splitlines()[0].strip()
-    return first.split("．")[0].lower() if first else None
+
+    # 2) first heading‑like line in retrieved passages
+    if m := TOPIC_LINE_PAT.search(ctx):
+        return m.group(1).strip().lower()
+
+    return None
+
+def filter_passages(topic: str, context: str) -> str:
+    if not topic:
+        return context
+    keep = [p for p in context.split("\n\n---\n\n") if topic.lower() in p.lower()]
+    return "\n\n---\n\n".join(keep) or context
 
 # ----------------------------------------------------------------------------
 # Async answer generator: returns final reply string for UI
@@ -135,7 +144,6 @@ async def answer_query(
     precomputed_context: str | None = None,
 ) -> str:
     """Retrieve relevant passages & ask the LLM to craft a helpful reply."""
-    logger.info("User question received: %s", question)
 
     # (1) Retrieve or reuse context
     if precomputed_context is not None:
@@ -220,20 +228,6 @@ async def answer_query(
                 "ingredients. Reply in English."
             ),
         })
-    
-        # ─── DEBUG: save full prompt to disk so you can inspect it ────────────
-    # Enable/disable simply by setting the env‑var PROMPT_LOG_DIR.
-    # debug_dir = "/home/kree/Chopsticks-Dreams/logs"
-    debug_dir = os.getenv("PROMPT_LOG_DIR")
-    if debug_dir:
-        from pathlib import Path
-        import json, datetime
-
-        Path(debug_dir).mkdir(parents=True, exist_ok=True)
-        ts   = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-        fname = f"prompt_{ts}.json"
-        with open(Path(debug_dir) / fname, "w", encoding="utf‑8") as f:
-            json.dump(prompt_messages, f, ensure_ascii=False, indent=2)
     
     # (3) Call OpenAI – run sync client in executor so we remain async
     try:

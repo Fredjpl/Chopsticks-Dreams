@@ -15,6 +15,10 @@ external recipe knowledge (return "RAG") or can answer from prior context
 
 Rules for RAG:
 • The user presents NEW ingredients or a NEW dish name.
+• The user wants to cook a specific dish or asks for a specific ingredient.
+• The user asks for a specific cooking method or technique.
+• The user asks for a recipe or cooking method.
+
 • The user asks to buy ingredients or wants grocery info.
 
 Rules for NO_RAG:
@@ -53,17 +57,5 @@ async def need_rag(focus: str, new_msg: str,
         max_tokens=3,
     )
     token = resp.choices[0].message.content.strip().upper()
-
-    # ── debug dump ────────────────────────────────────────────────────────
-    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    Path("logs/gatekeeper").mkdir(parents=True, exist_ok=True)
-    with open(Path("logs/gatekeeper") / f"{session_id}_{ts}.json",
-              "w", encoding="utf-8") as f:
-        json.dump({"timestamp": ts,
-                   "session": session_id,
-                   "decision": token,
-                   "focus": focus,
-                   "user_msg": new_msg},
-                  f, ensure_ascii=False, indent=2)
 
     return token == "RAG", token
