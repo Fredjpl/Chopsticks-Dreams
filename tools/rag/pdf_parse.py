@@ -15,8 +15,8 @@ chunks = dp.data               # list[str]
 from pathlib import Path
 from typing import List
 
-import pdfplumber               # only needed for the header-aware parser
-from PyPDF2 import PdfReader    # lightweight full-text reader
+import pdfplumber              
+from PyPDF2 import PdfReader  
 
 
 class DataProcess:
@@ -24,9 +24,6 @@ class DataProcess:
         self.pdf_path = str(pdf_path)
         self.data: List[str] = []
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
     def _sliding_window(self, sentences: List[str],
                         kernel: int = 512, stride: int = 1) -> None:
         """
@@ -49,9 +46,6 @@ class DataProcess:
         if cur and cur not in self.data:
             self.data.append(cur)
 
-    # ------------------------------------------------------------------
-    # Public one-shot parser (simple but robust)
-    # ------------------------------------------------------------------
     def parse(self, max_seq: int = 512, min_len: int = 20) -> None:
         """
         Extract text from **one** PDF and populate `self.data`
@@ -69,11 +63,11 @@ class DataProcess:
             cleaned_lines = []
             for line in page_text.splitlines():
                 line = line.strip()
-                if not line:                       # blank line
+                if not line:                   
                     continue
-                if line.isdigit():                # page number
+                if line.isdigit():            
                     continue
-                if "目录" in line:                 # table of contents markers
+                if "目录" in line:               
                     continue
                 cleaned_lines.append(line)
             full_text += "".join(cleaned_lines) + "。"
@@ -85,9 +79,6 @@ class DataProcess:
         # 4) Sliding-window chunking
         self._sliding_window(sentences, kernel=max_seq)
 
-    # ------------------------------------------------------------------
-    # Legacy header-aware parser (kept just in case)
-    # ------------------------------------------------------------------
     def parse_block(self, max_seq: int = 1024) -> None:
         """
         Original block parser based on font size & headers.
@@ -115,7 +106,6 @@ class DataProcess:
                 if seq:
                     self._data_filter(seq, header, page_id, max_seq)
 
-    # --- internal helpers used only by `parse_block` ------------------
     def _data_filter(self, text: str, header: str,
                      page_id: int, max_seq: int = 1024) -> None:
         if len(text) < 6:
@@ -144,10 +134,6 @@ class DataProcess:
                 return w["text"]
         return words[0]["text"] if words else None
 
-
-# ----------------------------------------------------------------------
-# Simple sanity-check
-# ----------------------------------------------------------------------
 if __name__ == "__main__":
     pdf = Path("../../data/how_to_cook.pdf")
     dp = DataProcess(pdf)

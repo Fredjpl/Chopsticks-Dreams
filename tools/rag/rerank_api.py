@@ -25,8 +25,6 @@ class APIReranker:
         self.client = cohere.Client(api_key)
         self.model = model
 
-    # -------------------------------------------------------------
-
     def predict(self, query: str, docs: List[Document]) -> List[Document]:
         """
         Return the *docs* list reordered by decreasing relevance.

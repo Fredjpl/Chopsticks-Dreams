@@ -17,33 +17,22 @@ from pathlib import Path
 from typing import List
 import datetime
 
-import openai  # needs OPENAI_API_KEY env‑var
+import openai  \
 client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
-
-# ─────────────────────────── RAG building blocks ──────────────────────────
 from tools.rag.pdf_parse import DataProcess
 from tools.rag.bm25_retriever import BM25
 from tools.rag.faiss_retriever import FaissRetriever
 from tools.rag.rerank_api import APIReranker
-
-# ----------------------------------------------------------------------------
-# youtube_search: helper function to extract dish name from the answer
-# ----------------------------------------------------------------------------
 from tools.youtube_video_recommender import youtube_helper
 from tools.grocery_search import grocery_helper
 import re
 from typing import List
 
-# ----------------------------------------------------------------------------
-# Logging (quiet by default – enable in your main app if you want)
-# ----------------------------------------------------------------------------
 logger = logging.getLogger(__name__)
 
-# ----------------------------------------------------------------------------
-# Index / model paths & constants
-# ----------------------------------------------------------------------------
+
 ROOT = Path(__file__).resolve().parents[1]
 PDF_PATH = ROOT / "data" / "how_to_cook.pdf"
 INDEX_DIR = ROOT / "indexes"
@@ -55,9 +44,6 @@ top_k_lex = 20
 top_k_dense = 20
 final_k = 6
 
-# ----------------------------------------------------------------------------
-# One‑off index build / load (executed at module import) – no stdout prints
-# ----------------------------------------------------------------------------
 INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
 if not (BM25_PATH.exists() and FAISS_PATH.exists()):
@@ -74,7 +60,6 @@ if not (BM25_PATH.exists() and FAISS_PATH.exists()):
     fr_tmp.save(FAISS_PATH)
     del bm25_tmp, fr_tmp  # free mem before loading normally
 
-# Load indexes (fast) ----------------------------------------------------------------
 logger.info("Loading indexes …")
 bm25 = BM25.load(BM25_PATH)
 faiss = FaissRetriever.load(FAISS_PATH, model_name=EMBED_MODEL)
@@ -87,9 +72,6 @@ class RagResult(BaseModel):
     def __str__(self) -> str:  # noqa: DunderStr: show concise preview in logs
         return "✅ RAG result (hidden)"
 
-# ----------------------------------------------------------------------------
-# Core retrieval routine (async because FAISS + Cohere calls are blocking)
-# ----------------------------------------------------------------------------
 async def _ingredient_query(question: str) -> RagResult:
     """Hybrid lexical + dense search followed by Cohere rerank → top passages."""
     # 1) lexical BM25
@@ -135,9 +117,6 @@ def filter_passages(topic: str, context: str) -> str:
     keep = [p for p in context.split("\n\n---\n\n") if topic.lower() in p.lower()]
     return "\n\n---\n\n".join(keep) or context
 
-# ----------------------------------------------------------------------------
-# Async answer generator: returns final reply string for UI
-# ----------------------------------------------------------------------------
 async def answer_query(
     question: str,
     history: list[tuple[str, str]] | None = None, 
@@ -244,7 +223,6 @@ async def answer_query(
             "Please try again later, "
             "or check your API settings.\n"
         )
-    # ─────────────────────────  Post-process YOUTUBE_SEARCH  ─────────────────────────
     m = re.search(r"^YOUTUBE_SEARCH:\s*(.+)$", answer, re.MULTILINE)
     if m:
         dish_name = m.group(1).strip()
@@ -266,7 +244,6 @@ async def answer_query(
                 flags=re.MULTILINE,
             )
 
-    # ─────────────────────────  Post-process GROCERY_SEARCH  ───────────────────
     g = re.search(r'^GROCERY_SEARCH:\s*(\[[^\]]+\])', answer, re.MULTILINE)
 
     if g:
@@ -277,9 +254,6 @@ async def answer_query(
     answer = re.sub(r'\bTERMINATE\b', '', answer).strip()
     return answer, context
 
-# ----------------------------------------------------------------------------
-# Entrypoint: start the interactive chat loop using tools.ui
-# ----------------------------------------------------------------------------
 if __name__ == "__main__":
     from tools import ui  # local import to avoid circular deps when ui imports us
 

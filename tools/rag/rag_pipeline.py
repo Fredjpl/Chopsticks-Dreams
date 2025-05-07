@@ -15,7 +15,6 @@ __all__ = ["RAGPipeline"]
 
 
 class RAGPipeline:
-    # ------------------------------------------------------------------
     def __init__(
         self,
         bm25_index_path: Path,
@@ -59,7 +58,6 @@ class RAGPipeline:
         self.top_k_lex = top_k_lex
         self.final_k = final_k
 
-    # ------------------------------------------------------------------
     def retrieve(self, query: str) -> List[str]:
         dense_docs = [d[0] for d in self.faiss.GetTopK(query, self.top_k_dense)]
         lex_docs = self.bm25.GetBM25TopK(query, self.top_k_lex)
@@ -69,7 +67,6 @@ class RAGPipeline:
         reranked = self.rerank.predict(query, list(pool))
         return [d.page_content for d in reranked[: self.final_k]]
 
-    # ------------------------------------------------------------------
     @staticmethod
     def _build_indexes(pdf_path: Path,
                        bm25_out: Path,

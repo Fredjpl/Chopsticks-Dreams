@@ -47,7 +47,7 @@ class FaissRetriever:
         Manually embed in batches with concurrency so we can show a tqdm bar,
         then build a FAISS index from the vectors.
         """
-        # 1. Pre-create Document objects
+
         docs = [
             Document(page_content=t.strip(), metadata={"id": i})
             for i, t in enumerate(texts) if len(t.strip()) > 4
@@ -83,7 +83,6 @@ class FaissRetriever:
 
         return FAISS(index, docs, metadatas, embeddings)
 
-    # --------------------------- build ---------------------------
     def __init__(self,
                  texts: Sequence[str],
                  model_name: str = "text-embedding-3-large",
@@ -104,7 +103,6 @@ class FaissRetriever:
         self.vector_store = FAISS.from_documents(docs, self.embeddings)
         torch.cuda.empty_cache()
 
-    # --------------------------- I/O -----------------------------
     def save(self, path: Path | str) -> None:
         """
         Persist index to *directory* ``path``.  Creates parent dirs.
@@ -129,7 +127,6 @@ class FaissRetriever:
         obj.vector_store = vs
         return obj
 
-    # ------------------------- Retrieval -------------------------
     def GetTopK(self, query: str, k: int = 10):
         """Return ``[(Document, score), …]`` best matches."""
         return self.vector_store.similarity_search_with_score(query, k=k)
