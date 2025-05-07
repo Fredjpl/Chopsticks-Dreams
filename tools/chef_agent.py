@@ -23,6 +23,7 @@ import datetime
 
 import openai  # needs OPENAI_API_KEY env‑var
 client = openai.AsyncOpenAI()
+client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
 
@@ -183,7 +184,28 @@ async def answer_query(
 "   • I want to find out how to learn...\n"
 "   • I want to find out how to know...\n"
 "   • I want to find out how to see...\n"
+"   YOUTUBE_SEARCH: <dish-name-in-English>\n"
+"   Here are some kinds of intents and its corresponding examples:\n"
+"   • I want to learn how to cook...\n"
+"   • I want to watch a video tutorial for....\n"
+"   • I want to watch the videos about...\n"
+"   • I want to learn how to make...\n"
+"   • I want to learn how to prepare...\n"
+"   • I want to know more about...\n"
+"   • I want to know how to cook...\n"
+"   • I want to cook...\n"
+"   • I want to learn...\n"
+"   • I want to know...\n"
+"   • I want to see...\n"
+"   • I want to find out how to cook...\n"
+"   • I want to find out how to make...\n"
+"   • I want to find out how to prepare...\n"
+"   • I want to find out how to learn...\n"
+"   • I want to find out how to know...\n"
+"   • I want to find out how to see...\n"
 "   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
+"7. If the user shows explicitly wants to **buy the missing ingredients**,\n"
+"   • Only list the critical-missing items.\n"
 "7. If the user shows explicitly wants to **buy the missing ingredients**,\n"
 "   • Only list the critical-missing items.\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
@@ -208,9 +230,35 @@ async def answer_query(
 "8. **Never** output *both* `YOUTUBE_SEARCH:` and `GROCERY_SEARCH:` in the same response. \n"
 "    If the user seems to want both, ask a short follow-up question so you can decide which"
 "    single line to emit.\n"
+"   Here are some kinds of intents and its corresponding examples:\n"
+"   • I want to buy...\n"
+"   • I want to purchase...\n"
+"   • I want to get...\n"
+"   • I want to find...\n"
+"   • I want to order...\n"
+"   • I want to look for...\n"
+"   • I want to find out where to buy...\n"
+"   • I want to know where to buy...\n"
+"   • I want to know where I can buy...\n"
+"   • I want to know where I can find...\n"
+"   • I want to know where I can get...\n"
+"   • I want to know where I can search for...\n"
+"   • I want to know where I can find out where to buy...\n"
+"   • I want to know where I can find out where to purchase...\n"
+"   • If intent is ambiguous, ask a clarifying question first instead of outputting the line of GROCERY_SEARCH: ['item1', 'item2', ...].\n"
+"   Note: you should only output this line if the user has a strong intention to buy the missing critical ingredients.\n"
+"8. **Never** output *both* `YOUTUBE_SEARCH:` and `GROCERY_SEARCH:` in the same response. \n"
+"    If the user seems to want both, ask a short follow-up question so you can decide which"
+"    single line to emit.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
 "End your response with TERMINATE when finished.\n"
             ),
+        }]
+    if history:
+        for u_msg, b_msg in history:
+            prompt_messages.append({"role": "user",      "content": u_msg})
+            prompt_messages.append({"role": "assistant", "content": b_msg})
+    prompt_messages.append(
         }]
     if history:
         for u_msg, b_msg in history:
@@ -246,7 +294,11 @@ async def answer_query(
     try:
         completion = await client.chat.completions.create(   # ← async call
             model="gpt-4o",
+    try:
+        completion = await client.chat.completions.create(   # ← async call
+            model="gpt-4o",
             messages=prompt_messages,
+            temperature=0.2,
             temperature=0.2,
         )
         answer = completion.choices[0].message.content.strip()
