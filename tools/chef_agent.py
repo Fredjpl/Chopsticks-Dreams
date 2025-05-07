@@ -18,6 +18,7 @@ from typing import List
 import datetime
 
 import openai  # needs OPENAI_API_KEY env‑var
+client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
 
@@ -117,13 +118,20 @@ async def _ingredient_query(question: str) -> RagResult:
 # ----------------------------------------------------------------------------
 # Async answer generator: returns final reply string for UI
 # ----------------------------------------------------------------------------
-async def answer_query(question: str, history: str | None = None) -> str:  # noqa: D401
+async def answer_query(
+    question: str,
+    history: list[tuple[str, str]] | None = None, 
+    precomputed_context: str | None = None,
+) -> str:
     """Retrieve relevant passages & ask the LLM to craft a helpful reply."""
     logger.info("User question received: %s", question)
 
-    # (1) Retrieve context via RAG
-    rag_result = await _ingredient_query(question)
-    context = rag_result.content
+    # (1) Retrieve or reuse context
+    if precomputed_context is not None:
+        context = precomputed_context
+    else:
+        rag_result = await _ingredient_query(question)
+        context = rag_result.content
 
     # (2) Compose system / user messages for OpenAI chat completion
     prompt_messages = [
@@ -138,30 +146,59 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
 "4. If some important ingredients are missing, kindly point out the missing ingredients, and mention whether they are critical or optional.\n"
 "5. If the user's input ingredients are extremely abnormal or unrelated to Chinese cooking, politely reply that the ingredients are not expected or related to the available Chinese recipes.\n"
 "6. If the user shows intention or explicitly wants to **learn more / watch a tutorial** for one specific dish, append a single line at the very end (after TERMINATE) in the exact format:\n"
-"   YOUTUBE_SEARCH: <dish-name-in-Chinese-or-English>\n"
+"   YOUTUBE_SEARCH: <dish-name-in-English>\n"
+"   Here are some kinds of intents and its corresponding examples:\n"
+"   • I want to learn how to cook...\n"
+"   • I want to watch a video tutorial for....\n"
+"   • I want to watch the videos about...\n"
+"   • I want to learn how to make...\n"
+"   • I want to learn how to prepare...\n"
+"   • I want to know more about...\n"
+"   • I want to know how to cook...\n"
+"   • I want to cook...\n"
+"   • I want to learn...\n"
+"   • I want to know...\n"
+"   • I want to see...\n"
+"   • I want to find out how to cook...\n"
+"   • I want to find out how to make...\n"
+"   • I want to find out how to prepare...\n"
+"   • I want to find out how to learn...\n"
+"   • I want to find out how to know...\n"
+"   • I want to find out how to see...\n"
 "   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
-"   **You MUST output this line if and only if the intent is clear.**\n"
-"7. If the user shows intention or explicitly wants to **buy the missing critical ingredients**,\n"
+"7. If the user shows explicitly wants to **buy the missing ingredients**,\n"
+"   • Only list the critical-missing items.\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
-"   • Only list the critical-missing items.\n"
-"   • If intent is ambiguous, ask a clarifying question instead of outputting\n"
-"     the line.\n"
+"   Here are some kinds of intents and its corresponding examples:\n"
+"   • I want to buy...\n"
+"   • I want to purchase...\n"
+"   • I want to get...\n"
+"   • I want to find...\n"
+"   • I want to order...\n"
+"   • I want to look for...\n"
+"   • I want to find out where to buy...\n"
+"   • I want to know where to buy...\n"
+"   • I want to know where I can buy...\n"
+"   • I want to know where I can find...\n"
+"   • I want to know where I can get...\n"
+"   • I want to know where I can search for...\n"
+"   • I want to know where I can find out where to buy...\n"
+"   • I want to know where I can find out where to purchase...\n"
+"   • If intent is ambiguous, ask a clarifying question first instead of outputting the line of GROCERY_SEARCH: ['item1', 'item2', ...].\n"
+"   Note: you should only output this line if the user has a strong intention to buy the missing critical ingredients.\n"
+"8. **Never** output *both* `YOUTUBE_SEARCH:` and `GROCERY_SEARCH:` in the same response. \n"
+"    If the user seems to want both, ask a short follow-up question so you can decide which"
+"    single line to emit.\n"
 "Always base your answers strictly on the retrieved passages. Do not hallucinate or fabricate any dishes.\n"
 "End your response with TERMINATE when finished.\n"
             ),
-        },
-    *(
-        [{
-            "role": "system",
-            "content": (
-                "Here is the recent conversation for context "
-                "(do **not** repeat verbatim; use only if it helps "
-                "answer follow-up questions):\n"
-                f"{history.strip()[:5000]}"      # trim if you like
-            ),
-        }] if history else []
-    ),
+        }]
+    if history:
+        for u_msg, b_msg in history:
+            prompt_messages.append({"role": "user",      "content": u_msg})
+            prompt_messages.append({"role": "assistant", "content": b_msg})
+    prompt_messages.append(
         {
             "role": "user",
             "content": (
@@ -171,20 +208,28 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
                 "ingredients fit, and point out any missing critical vs. optional "
                 "ingredients. Reply in English."
             ),
-        },
-    ]
+        })
+    
+        # ─── DEBUG: save full prompt to disk so you can inspect it ────────────
+    # Enable/disable simply by setting the env‑var PROMPT_LOG_DIR.
+    debug_dir = "/home/kree/Chopsticks-Dreams/logs"
+    if debug_dir:
+        from pathlib import Path
+        import json, datetime
+
+        Path(debug_dir).mkdir(parents=True, exist_ok=True)
+        ts   = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        fname = f"prompt_{ts}.json"
+        with open(Path(debug_dir) / fname, "w", encoding="utf‑8") as f:
+            json.dump(prompt_messages, f, ensure_ascii=False, indent=2)
+    
     # (3) Call OpenAI – run sync client in executor so we remain async
-    loop = asyncio.get_running_loop()
-
-    def _openai_call():
-        return openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=prompt_messages,
-            temperature=0.7,
-        )
-
     try:
-        completion = await loop.run_in_executor(None, _openai_call)
+        completion = await client.chat.completions.create(   # ← async call
+            model="gpt-4o",
+            messages=prompt_messages,
+            temperature=0.2,
+        )
         answer = completion.choices[0].message.content.strip()
     except Exception as err:
         logger.exception("OpenAI generation failed: %s", err)
@@ -223,23 +268,8 @@ async def answer_query(question: str, history: str | None = None) -> str:  # noq
         fixed = g.group(1).replace("'", '"')
         answer = answer.replace(g.group(1), fixed)
 
-        # leave the trigger line intact; the front-end will read it and
-        # prompt for ZIP code
-
-    #     try:
-    #         vids = grocery_helper.search_grocery_store_nearby(zipcode, missing_ingredients, radius=3500)
-    #         answer = re.sub(r'^GROCERY_SEARCH:', 'MISSING_INGREDIENTS:', answer,
-    #                     flags=re.MULTILINE)
-        # except Exception as e:
-        #     logger.error("Grocery search failed: %s", e)
-        #     # fall back to plain text notice
-        #     answer = re.sub(
-        #         r"^GROCERY_SEARCH:.*$",
-        #         "(Sorry, I couldn't fetch Grocery places right now.)",
-        #         answer,
-        #         flags=re.MULTILINE,
-        #     ) 
-    return answer
+    answer = re.sub(r'\bTERMINATE\b', '', answer).strip()
+    return answer, context
 
 # ----------------------------------------------------------------------------
 # Entrypoint: start the interactive chat loop using tools.ui
