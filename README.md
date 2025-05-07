@@ -6,7 +6,7 @@ Cook From What You Have: Your AI Kitchen Assistant for Chinese Recipes
 
 We deployed our agent to an Amazon EC2 instance, making it accessible via:
 
-**🔗 [http://3.19.22.54](http://3.19.22.54)**
+**🔗 [http://3.19.22.54]([http://3.19.22.54](http://3.19.22.54:5000/))**
 
 The backend runs on `Flask`, and the server listens on port `5000`. To access the web interface:
 
