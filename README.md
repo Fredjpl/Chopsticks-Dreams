@@ -2,6 +2,18 @@
 
 Cook From What You Have: Your AI Kitchen Assistant for Chinese Recipes
 
+### 🚀 Deployment
+
+We deployed our agent to an Amazon EC2 instance, making it accessible via:
+
+**🔗 [http://3.19.22.54](http://3.19.22.54)**
+
+The backend runs on `Flask`, and the server listens on port `5000`. To access the web interface:
+
+1. Open your browser.
+2. Navigate to the public IP: **http://3.19.22.54**
+3. Explore the features: upload a grocery photo, speak to the assistant, or ask for recipes.
+
 ### Description
 
 **Cook From What You Have** is an **AI-powered recipe recommendation agent** that helps users discover authentic Chinese dishes based on ingredients they already have. By simply uploading a photo of their groceries or a shopping receipt, users receive customized recipe suggestions, missing ingredient lists, and smart substitutes—bridging daily cooking with intelligent assistance. 
