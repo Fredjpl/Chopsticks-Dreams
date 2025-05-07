@@ -1,4 +1,4 @@
-"""tools/chef_agent.py — Retrieval‑Augmented Chinese‑recipe assistant
+"""tools/recipe_rag.py — Retrieval‑Augmented Chinese‑recipe assistant
 
 
 This module builds/loads the hybrid BM25 + FAISS indexes (with Cohere
@@ -22,7 +22,6 @@ import datetime
 
 
 import openai  # needs OPENAI_API_KEY env‑var
-client = openai.AsyncOpenAI()
 client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
@@ -184,52 +183,11 @@ async def answer_query(
 "   • I want to find out how to learn...\n"
 "   • I want to find out how to know...\n"
 "   • I want to find out how to see...\n"
-"   YOUTUBE_SEARCH: <dish-name-in-English>\n"
-"   Here are some kinds of intents and its corresponding examples:\n"
-"   • I want to learn how to cook...\n"
-"   • I want to watch a video tutorial for....\n"
-"   • I want to watch the videos about...\n"
-"   • I want to learn how to make...\n"
-"   • I want to learn how to prepare...\n"
-"   • I want to know more about...\n"
-"   • I want to know how to cook...\n"
-"   • I want to cook...\n"
-"   • I want to learn...\n"
-"   • I want to know...\n"
-"   • I want to see...\n"
-"   • I want to find out how to cook...\n"
-"   • I want to find out how to make...\n"
-"   • I want to find out how to prepare...\n"
-"   • I want to find out how to learn...\n"
-"   • I want to find out how to know...\n"
-"   • I want to find out how to see...\n"
 "   (Example:  YOUTUBE_SEARCH: stir-fried Green Peppers and Onions)\n"
-"7. If the user shows explicitly wants to **buy the missing ingredients**,\n"
-"   • Only list the critical-missing items.\n"
 "7. If the user shows explicitly wants to **buy the missing ingredients**,\n"
 "   • Only list the critical-missing items.\n"
 "   append a single line at the very end (after TERMINATE) in the exact format:\n"
 "     GROCERY_SEARCH: ['item1', 'item2', ...]\n"
-"   Here are some kinds of intents and its corresponding examples:\n"
-"   • I want to buy...\n"
-"   • I want to purchase...\n"
-"   • I want to get...\n"
-"   • I want to find...\n"
-"   • I want to order...\n"
-"   • I want to look for...\n"
-"   • I want to find out where to buy...\n"
-"   • I want to know where to buy...\n"
-"   • I want to know where I can buy...\n"
-"   • I want to know where I can find...\n"
-"   • I want to know where I can get...\n"
-"   • I want to know where I can search for...\n"
-"   • I want to know where I can find out where to buy...\n"
-"   • I want to know where I can find out where to purchase...\n"
-"   • If intent is ambiguous, ask a clarifying question first instead of outputting the line of GROCERY_SEARCH: ['item1', 'item2', ...].\n"
-"   Note: you should only output this line if the user has a strong intention to buy the missing critical ingredients.\n"
-"8. **Never** output *both* `YOUTUBE_SEARCH:` and `GROCERY_SEARCH:` in the same response. \n"
-"    If the user seems to want both, ask a short follow-up question so you can decide which"
-"    single line to emit.\n"
 "   Here are some kinds of intents and its corresponding examples:\n"
 "   • I want to buy...\n"
 "   • I want to purchase...\n"
@@ -259,12 +217,6 @@ async def answer_query(
             prompt_messages.append({"role": "user",      "content": u_msg})
             prompt_messages.append({"role": "assistant", "content": b_msg})
     prompt_messages.append(
-        }]
-    if history:
-        for u_msg, b_msg in history:
-            prompt_messages.append({"role": "user",      "content": u_msg})
-            prompt_messages.append({"role": "assistant", "content": b_msg})
-    prompt_messages.append(
         {
             "role": "user",
             "content": (
@@ -278,7 +230,8 @@ async def answer_query(
    
         # ─── DEBUG: save full prompt to disk so you can inspect it ────────────
     # Enable/disable simply by setting the env‑var PROMPT_LOG_DIR.
-    debug_dir = "C:\\Users\\12812\\Chopsticks-Dreams\\logs"
+    # debug_dir = "/home/kree/Chopsticks-Dreams/logs"
+    debug_dir = os.getenv("PROMPT_LOG_DIR")
     if debug_dir:
         from pathlib import Path
         import json, datetime
@@ -294,11 +247,7 @@ async def answer_query(
     try:
         completion = await client.chat.completions.create(   # ← async call
             model="gpt-4o",
-    try:
-        completion = await client.chat.completions.create(   # ← async call
-            model="gpt-4o",
             messages=prompt_messages,
-            temperature=0.2,
             temperature=0.2,
         )
         answer = completion.choices[0].message.content.strip()
@@ -355,3 +304,8 @@ if __name__ == "__main__":
 
     # Run until user types "exit" / Ctrl‑C
     asyncio.run(ui.chat_loop(answer_query))
+
+
+
+
+
