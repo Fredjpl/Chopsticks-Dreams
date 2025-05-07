@@ -245,7 +245,7 @@ async def answer_query(
    
     # (3) Call OpenAI – run sync client in executor so we remain async
     try:
-        completion = await client.chat.completions.create(   # ← async call
+        completion = await client.chat.completions.create(  
             model="gpt-4o",
             messages=prompt_messages,
             temperature=0.2,

@@ -9,7 +9,8 @@ _sessions: dict[str, ConversationMemory] = {}
 
 
 async def _async_get_response(msg: str, session_id: str | None):
-    mem = _sessions.setdefault(session_id or "anon", ConversationMemory(5))
+    sid = session_id or "anon"
+    mem = _sessions.setdefault(sid, ConversationMemory(5))
     history_pairs = mem.history[-5:]
 
 
@@ -28,8 +29,9 @@ async def _async_get_response(msg: str, session_id: str | None):
 
     # 4. update memory
     mem.add_interaction(msg, answer)
-    if rag_required:
-        mem.last_rag = ctx
+    if rag_needed:
+        mem.last_rag   = ctx
+        mem.last_topic = chef_agent.detect_topic(msg, ctx)
 
 
     # 5. optional: persist for debugging

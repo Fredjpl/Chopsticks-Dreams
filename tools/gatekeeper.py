@@ -1,5 +1,5 @@
 # tools/gatekeeper.py
-import openai, os, json, datetime
+import os, json, datetime
 from pathlib import Path
 
 
@@ -28,13 +28,15 @@ Output exactly one token: RAG  or  NO_RAG
 async def need_rag(full_history: str,
                    new_msg: str,
                    session_id: str | None = "anon") -> tuple[bool, str]:
-    msg = _PROMPT_HEADER + "\n\nCONVERSATION (truncated):\n" + full_history[-5000:]
-    msg += "\n\nLATEST USER MESSAGE:\n" + new_msg + "\n\nAnswer:"
+    """Returns (need_rag_flag, 'RAG' | 'NO_RAG')."""
     resp = await client.chat.completions.create(
         model=GK_MODEL,
-        messages=[{"role": "user", "content": msg}],
+        messages=[
+            {"role": "system", "content": _PROMPT_HEADER},
+            {"role": "user",
+             "content": f"CURRENT_FOCUS: {focus}\n\nLATEST_USER:\n{new_msg}"}],
         temperature=0,
-        max_tokens=1,
+        max_tokens=3,
     )
     token = resp.choices[0].message.content.strip().upper()
 

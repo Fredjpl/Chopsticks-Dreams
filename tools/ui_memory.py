@@ -1,4 +1,3 @@
-# tools/ui_memory.py
 class ConversationMemory:
     """Stores conversation history for multi-turn context."""
     def __init__(self, max_history=5):
