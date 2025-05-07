@@ -81,7 +81,7 @@ python -m server.server
 
 You can explore our agent using the following scenarios:
 
-- “**I have** eggs and peppers**, what can I cook?**”
+- “**I have eggs and peppers, what can I cook?**”
   - Upload a photo of your ingredients or type them in. The assistant will suggest recipes based on these items.
 - “**I want to learn how to cook** green peppers and onions.”
   - Simply state your desired dish or ingredients. The assistant will provide recipe options and necessary ingredients.
