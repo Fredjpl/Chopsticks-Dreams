@@ -16,7 +16,7 @@ To explore the application, follow these steps:
 2. Navigate to the public IP: **[http://3.19.22.54:5000](http://3.19.22.54:5000/)**
 3. Explore the features: upload a grocery photo, speak to the assistant, or ask for recipes.
 
-![](E:\2025_04-MS-AI-agent\Chopsticks-Dreams\imgs\web_ui.png)
+![Web Interface](imgs\web_ui.png)
 
 ## Features
 
