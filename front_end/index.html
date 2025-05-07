@@ -10,7 +10,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-  
+  <!-- Code highlight theme (optional) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -31,7 +32,7 @@
     }
     .card {
       width: 100%;
-      max-width: 800px;
+      max-width: 1000px;
       border: none;
       border-radius: 1rem;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
@@ -81,14 +82,21 @@
     }
     #out {
       white-space: pre-wrap;
-      max-height: 200px;
-      overflow-y: auto;
       background-color: #f0f4f8;
       padding: 1rem;
       border-radius: 0.5rem;
       border: none;
       font-size: 0.95rem;
       color: #333;
+    }
+    #out .video-block {
+      height: 150px;
+    }
+    #out .video-block iframe {
+      margin-top: -60px;
+      width: 100%;
+      height: 200px;
+      border-radius: 0.5rem;
     }
     #map {
       width: 100%;
@@ -105,14 +113,27 @@
       transform: translateY(-2px);
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
+    a.store-link {
+      text-decoration: none;
+    }
+    a.store-link:hover {
+      text-decoration: underline;
+    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      to   { opacity: 1; transform: translateY(0); }
     }
+    /* Markdown‑specific tweaks */
+    #out h1, #out h2, #out h3 { margin-top: 1rem; font-weight: 600; margin-bottom: -1rem; }
+    #out pre { background:#f6f8fa; padding:1rem; border-radius:.5rem; overflow:auto; }
+    #out code { font-family: monospace; }
+    #out table { width:100%; border-collapse: collapse; }
+    #out td, #out th { border: 1px solid #ddd; padding: .5rem; }
+    #out p { margin-bottom: -1rem;}
+    #out dl, ol, ul { margin-bottom: -1rem; }
   </style>
 </head>
 <body>
-  
   <div class="card">
     <div class="card-header">
       <h2>Cook From What You Have</h2>
@@ -123,6 +144,8 @@
         <i class="bi bi-camera-fill"></i> Take a picture to recognize ingredients &nbsp;|
         <i class="bi bi-mic-fill"></i> Click to speak
       </div>
+
+      <!-- INPUT FORM -->
       <form id="chatForm">
         <div class="mb-4">
           <label for="imgInp" class="form-label"><i class="bi bi-camera"></i> Upload Image</label>
@@ -133,25 +156,22 @@
           <textarea class="form-control" id="txt" rows="3" placeholder="Type your ingredients or question here..."></textarea>
         </div>
         <div class="mb-4 d-flex gap-3 align-items-center">
-          <button id="recBtn" type="button" class="btn btn-outline-primary">
-            <i class="bi bi-mic-fill"></i> Record
-          </button>
-          <button id="stopBtn" type="button" class="btn btn-outline-danger" disabled>
-            <i class="bi bi-stop-fill"></i> Stop
-          </button>
+          <button id="recBtn" type="button" class="btn btn-outline-primary"><i class="bi bi-mic-fill"></i> Record</button>
+          <button id="stopBtn" type="button" class="btn btn-outline-danger" disabled><i class="bi bi-stop-fill"></i> Stop</button>
           <span id="recStatus"></span>
         </div>
         <div class="d-grid">
-          <button id="sendBtn" type="button" onclick="send()" class="btn btn-primary btn-lg">
-            <i class="bi bi-send-fill me-2"></i> Send
-          </button>
+          <button id="sendBtn" type="button" onclick="send()" class="btn btn-primary btn-lg"><i class="bi bi-send-fill me-2"></i> Send</button>
         </div>
       </form>
       <small class="d-block text-center text-muted mt-3">You can keep asking how to cook any dish!</small>
+
+      <!-- CONVERSATION AREA -->
       <hr>
       <h5 class="mt-4" style="color: #333;"><i class="bi bi-journal-text"></i> Conversation</h5>
       <div id="out"></div>
 
+      <!-- MAP AREA -->
       <hr>
       <h5 class="mt-4" style="color: #333;"><i class="bi bi-geo-alt"></i> Store Locations</h5>
       <div id="map"></div>
@@ -160,46 +180,75 @@
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    let mediaRecorder, audioChunks = [];
-    const imgInp = document.getElementById("imgInp");
-    const txt = document.getElementById("txt");
-    const recBtn = document.getElementById("recBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const recStatus = document.getElementById("recStatus");
-    const sendBtn = document.getElementById("sendBtn");
-    const out = document.getElementById("out");
+  <!-- Markdown parser & sanitizer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.4/dist/purify.min.js"></script>
+  <!-- Highlight.js (optional, for code blocks) -->
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
 
-    // Google Maps variables
+  <script>
+    marked.setOptions({ gfm:true, breaks:true });
+  </script>
+
+  <script>
+    /* --------------------------------------------------
+       GLOBAL DOM HANDLES & STATE
+    -------------------------------------------------- */
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const imgInp   = document.getElementById('imgInp');
+    const txt      = document.getElementById('txt');
+    const recBtn   = document.getElementById('recBtn');
+    const stopBtn  = document.getElementById('stopBtn');
+    const recStatus= document.getElementById('recStatus');
+    const sendBtn  = document.getElementById('sendBtn');
+    const out      = document.getElementById('out');
+
+    /* --------------------------------------------------
+       GOOGLE MAPS HELPERS
+    -------------------------------------------------- */
     let map, geocoder, markers = [];
     let mapReady = false;
 
     function initMap() {
-    map      = new google.maps.Map(document.getElementById('map'), {
-      center: { lat: 41.8781, lng: -87.6298 },
-      zoom  : 12
-    });
-    geocoder = new google.maps.Geocoder();
-    mapReady = true;        
-  }
+      // Create map without center; we'll center once we have geolocation
+      map      = new google.maps.Map(document.getElementById('map'), { zoom: 12 });
+      geocoder = new google.maps.Geocoder();
 
-    // Load Google Maps script dynamically from backend-provided key
+      function placeAndCenter(position) {
+        map.setCenter(position);
+        new google.maps.Marker({ map, position, title: 'Your location' });
+        mapReady = true;
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => placeAndCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          ()  => placeAndCenter({ lat: 41.8781, lng: -87.6298 }) // fallback Chicago
+        );
+      } else {
+        placeAndCenter({ lat: 41.8781, lng: -87.6298 });
+      }
+    }
+
     async function loadMapScript() {
+      /* Fetch API key from backend then inject script tag */
       try {
         const res = await fetch('/api/config');
-        const cfg = await res.json();
-        const key = cfg.googlemaps_api_key;
+        const { googlemaps_api_key: key } = await res.json();
         if (!key) {
-          console.error("Google Maps API key not found in /api/config");
+          console.error('No Google Maps key found');
           return;
         }
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
-      } catch (err) {
-        console.error("Failed to load Google Maps API key:", err);
+        const s = document.createElement('script');
+        s.src    = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
+        s.async  = true;
+        s.defer  = true;
+        document.head.appendChild(s);
+      }
+      catch (err) {
+        console.error('Failed loading Maps:', err);
       }
     }
     loadMapScript();
@@ -210,138 +259,228 @@
     }
 
     function displayStoresOnMap(stores) {
-    if (!mapReady) {              // <— guard #1: wait until the map exists
-      console.warn("Map not ready yet; postponing.");
-      setTimeout(() => displayStoresOnMap(stores), 300);  // try again shortly
-      return;
-    }
-
-    clearMarkers();
-    const bounds = new google.maps.LatLngBounds();
-
-    const addMarker = (pos, title) => {
-      const marker = new google.maps.Marker({ map, position: pos, title });
-      markers.push(marker);
-      bounds.extend(pos);
-      map.fitBounds(bounds);      // safe: runs once per marker, accumulates
-    };
-
-    stores.forEach(store => {
-      /* Use backend-supplied coordinates if present */
-      if (store.lat != null && store.lng != null) {
-        addMarker({ lat: store.lat, lng: store.lng }, store.name);
+      if (!mapReady) {
+        setTimeout(() => displayStoresOnMap(stores), 300);
         return;
       }
 
-      /* Fallback: geocode the address */
-      if (!geocoder) return;      // guard #2 (shouldn’t fire, but belt-and-suspenders)
+      clearMarkers();
+      const bounds = new google.maps.LatLngBounds();
 
-      geocoder.geocode({ address: store.address }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          addMarker(results[0].geometry.location, store.name);
-        } else {
-          console.warn(`Geocode failed for ${store.address}: ${status}`);
+      function addMarker(pos, title) {
+        const m = new google.maps.Marker({ map, position: pos, title });
+        markers.push(m);
+        bounds.extend(pos);
+        map.fitBounds(bounds);
+      }
+
+      stores.forEach(store => {
+        if (store.lat != null && store.lng != null) {
+          addMarker({ lat: store.lat, lng: store.lng }, store.name);
+          return;
         }
+        geocoder.geocode({ address: store.address }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            addMarker(results[0].geometry.location, store.name);
+          }
+        });
       });
-    });
-  }
+    }
 
-    function containsGroceryTrigger(text){
+    /* --------------------------------------------------
+       GROCERY PAYLOAD HANDLING
+    -------------------------------------------------- */
+    function extractGroceryItems(text) {
       const m = text.match(/GROCERY_SEARCH:\s*(\[[^\]]+\])/);
-      if(!m) return null;
+      if (!m) return null;
       try {
-        const jsonLike = m[1].replace(/'/g, '"').replace(/\s+/g,'');
-        return JSON.parse(jsonLike);
-      } catch(e){
-        console.error("Cannot parse GROCERY_SEARCH payload:", e);
+        const json = m[1]
+          .replace(/'/g, '"')  // single -> double quotes
+          .replace(/\s+/g, '');
+        return JSON.parse(json);
+      }
+      catch {
         return null;
       }
     }
 
-    async function handleGrocery(items){
-      const zip = prompt(
-          "Great! Enter your ZIP / postcode so I can find nearby stores:");
-      if(!zip) return;
-      const r = await fetch("/api/grocery", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({zip, items})
+    async function handleGrocery(items) {
+      const zip = prompt('Enter your ZIP / postcode to find nearby stores:');
+      if (!zip) return;
+
+      const res = await fetch('/api/grocery', {
+        method : 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body   : JSON.stringify({ zip, items })
       });
-      const j = await r.json();
-      console.log(j)
-      out.innerHTML += `<div class='mb-3'><strong>Stores near ${items.join(", ")} @${zip}:</strong></div>`;
+      const data = await res.json();
 
-      const storeArr = Object.values(j.stores || {}).flat();
+      /* ------------ NEW LOGIC: select top 5 nearest & OPEN stores ------------- */
+      const allStores   = data.stores ? Object.values(data.stores).flat() : [];
+      const openStores  = allStores.filter(s => s.open_now);
+      const nearestOpen = openStores.slice(0, 5);
 
-      if (storeArr.length) {
-        storeArr.forEach(s => {
-          out.innerHTML += `<div>${s.name} — ${s.address} ${s.open_now ? '(Open)' : '(Closed)'}</div>`;
-        });
-        displayStoresOnMap(storeArr);   // note: pass storeArr, not j.stores
-      } else if (j.error) {
-        out.innerHTML += `<div class='text-danger'>${j.error}</div>`;
+      /* Log list into conversation */
+      const block = document.createElement('div');
+      block.innerHTML = `<strong>Top ${nearestOpen.length} open stores near @${zip}:</strong>`;
+
+      nearestOpen.forEach(s => {
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}`;
+        block.innerHTML += `<div>${s.name} — <a class="store-link" href="${mapsUrl}" target="_blank" rel="noopener">${s.address}</a></div>`;
+      });
+
+      if (!nearestOpen.length) {
+        block.innerHTML += `<div class='text-warning'>No open stores found right now.</div>`;
       }
+      if (data.error) block.innerHTML += `<div class='text-danger'>${data.error}</div>`;
+      block.innerHTML += "<br>";
+      out.appendChild(block);
       out.scrollTop = out.scrollHeight;
+
+      /* Show on map */
+      if (nearestOpen.length) {
+        displayStoresOnMap(nearestOpen);
+      }
     }
 
-    recBtn.onclick = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      audioChunks = [];
+    /* --------------------------------------------------
+       YOUTUBE HELPERS
+    -------------------------------------------------- */
+    function extractYoutubeLinks(text) {
+      /* Matches youtube.com/watch?v= or youtu.be/ links */
+      const regex  = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[\w\-]+)/g;
+      const unique = new Set();
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        unique.add(match[1]);
+      }
+      return Array.from(unique);
+    }
+
+    function appendVideosToConversation(parent, links) {
+      if (!links.length) return;
+
+      /* Limit to first three links */
+      const subset = links.slice(0, 3);
+
+      /* Build wrapper */
+      const wrapper = document.createElement('div');
+      wrapper.className = 'video-block row row-cols-1 row-cols-md-3 g-3 my-2';
+
+      subset.forEach(link => {
+        /* Convert to embeddable */
+        const embed = link.includes('watch?v=')
+          ? link.replace('watch?v=', 'embed/')
+          : link.replace('youtu.be/', 'youtube.com/embed/');
+
+        /* Column */
+        const col   = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = `<div class="ratio ratio-16x9"><iframe src="${embed}" allowfullscreen></iframe></div>`;
+
+        /* If iframe fails, remove the column to keep layout tidy */
+        col.querySelector('iframe').addEventListener('error', () => col.remove());
+        wrapper.appendChild(col);
+      });
+
+      parent.appendChild(wrapper);
+    }
+
+    /* --------------------------------------------------
+       AUDIO RECORDING BUTTONS
+    -------------------------------------------------- */
+    recBtn.onclick = async function startRecording() {
+      const stream       = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder      = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      audioChunks        = [];
       mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
       mediaRecorder.start();
-      recStatus.textContent = "Recording...";
-      recBtn.disabled = true;
+
+      recStatus.textContent = 'Recording...';
+      recBtn.disabled  = true;
       stopBtn.disabled = false;
     };
 
-    stopBtn.onclick = () => {
+    stopBtn.onclick = function stopRecording() {
       mediaRecorder.stop();
       mediaRecorder.onstop = () => {
-        recStatus.textContent = "Recorded ✓";
-        recBtn.disabled = false;
+        recStatus.textContent = 'Recorded ✓';
+        recBtn.disabled  = false;
         stopBtn.disabled = true;
       };
     };
 
+    /* --------------------------------------------------
+       SEND HANDLER
+    -------------------------------------------------- */
     async function send() {
+      /* Disable button to avoid double‑clicks */
       sendBtn.disabled = true;
-      let url, body, headers = {};
+
+      /* Decide which endpoint to hit */
+      let endpoint, body, headers = {};
 
       if (imgInp.files[0]) {
-        url = "/api/image";
-        body = new FormData();
-        body.append("image", imgInp.files[0]);
-      } else if (audioChunks.length) {
-        url = "/api/speech";
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        body = new FormData();
-        body.append("audio", blob, "record.webm");
+        endpoint = '/api/image';
+        body     = new FormData();
+        body.append('image', imgInp.files[0]);
+      }
+      else if (audioChunks.length) {
+        endpoint = '/api/speech';
+        body     = new FormData();
+        body.append('audio', new Blob(audioChunks, { type: 'audio/webm' }), 'record.webm');
         audioChunks = [];
-        recStatus.textContent = "";
-      } else {
-        url = "/api/text";
-        body = JSON.stringify({ text: txt.value.trim() });
-        headers["Content-Type"] = "application/json";
+        recStatus.textContent = '';
+      }
+      else {
+        endpoint           = '/api/text';
+        body               = JSON.stringify({ text: txt.value.trim() });
+        headers['Content-Type'] = 'application/json';
       }
 
       try {
-        const r = await fetch(url, { method: "POST", body, headers });
-        const j = await r.json();
-        const userEntry = txt.value.trim() || (imgInp.files[0]?.name || 'audio');
-        const botReply = j.response || j.error || '';
-        out.innerHTML += `<div class='mb-3'><strong>You:</strong> ${userEntry}<br><strong>ChefBot:</strong> ${botReply}</div>`;
-        out.scrollTop = out.scrollHeight;
+        const res   = await fetch(endpoint, { method:'POST', body, headers });
+        const json  = await res.json();
+        const reply = json.response || json.error || '';
+        const input = txt.value.trim() || (imgInp.files[0]?.name || 'audio');
 
-        const items = containsGroceryTrigger(j.response|| "");
-        if(items) handleGrocery(items);
-      } catch (err) {
+        /* Build chat bubble with Markdown‑rendered reply */
+        const bubble = document.createElement('div');
+        bubble.className = 'mb-1';
+
+        bubble.innerHTML = `<strong>You:</strong> ${input}`;
+
+        const chefHTML = DOMPurify.sanitize(marked.parse(reply));
+        const chefDiv  = document.createElement('div');
+        chefDiv.innerHTML = `<strong>ChefBot:</strong> ${chefHTML}`;
+        chefDiv.innerHTML += "<br>";
+        bubble.appendChild(chefDiv);
+
+        out.appendChild(bubble);
+
+        /* Syntax highlighting (optional) */
+        if (typeof hljs !== 'undefined') {
+          hljs.highlightAll();
+        }
+
+        /* Post‑processing */
+        const groceryItems = extractGroceryItems(reply);
+        if (groceryItems) await handleGrocery(groceryItems);
+
+        const videoLinks = extractYoutubeLinks(reply);
+        appendVideosToConversation(bubble, videoLinks);
+
+        /* Auto‑scroll */
+        out.scrollTop = out.scrollHeight;
+      }
+      catch (err) {
         out.innerHTML += `<div class='text-danger'>Error: ${err.message}</div>`;
       }
 
-      txt.value = "";
-      imgInp.value = "";
-      sendBtn.disabled = false;
+      /* Reset inputs / buttons */
+      txt.value = '';
+      imgInp.value='';
+      sendBtn.disabled=false;
     }
   </script>
 </body>

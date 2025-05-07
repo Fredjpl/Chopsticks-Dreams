@@ -16,7 +16,7 @@ def get_lat_lng_from_zip(zipcode):
     else:
         raise ValueError(f"Can't locate zipcode {zipcode}. Error：{res_json['status']}")
 
-def search_grocery_store_nearby(zipcode, item_list, radius=3000):
+def search_grocery_store_nearby(zipcode, item_list, radius=1500):
     lat, lng = get_lat_lng_from_zip(zipcode)
     results_by_item = {}
 

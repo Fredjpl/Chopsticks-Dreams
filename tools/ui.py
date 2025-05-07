@@ -95,25 +95,6 @@ async def chat_loop(get_response):
         if user_query is None:
             continue  # just in case, though input() returns "" not None on Enter
         user_query = user_query.strip()
-        # # ------------------------------------------------------------------
-        # #  NEW: recognise   img: <path>   or   img: <path> | <extra text>
-        # # ------------------------------------------------------------------
-        # img_path = None
-        # extra_text = ""
-        # m = re.match(r"img:\s*([^|]+?)(?:\s*\|\s*(.+))?$", user_query, re.I)
-        # if m:
-        #     img_path = m.group(1).strip()
-        #     extra_text = (m.group(2) or "").strip()
-        #     try:
-        #         detected = ingredients_detector(img_path)          # JSON string
-        #     except Exception as e:
-        #         display_bot_message(f"[Vision error] {e}")
-        #         continue
-
-        #     if extra_text:
-        #         user_query = f"{extra_text}\n\nDetected ingredients: {detected}"
-        #     else:
-        #         user_query = f"Detected ingredients: {detected}"
 
         # Check exit conditions
         if user_query.lower() in {"exit", "quit", "q"}:
@@ -123,14 +104,15 @@ async def chat_loop(get_response):
         # 2. Display the user's message in the conversation log
         display_user_message(user_query)
 
-        # 3. Prepare conversation context and get the bot’s response
-        context_str = memory.get_context()
+        # 3. Grab the last 3 Q‑A pairs as structured history
+        history_pairs = memory.history[-5:]
         try:
             if asyncio.iscoroutinefunction(get_response):
-                bot_reply = await get_response(user_query, context_str)
+                bot_reply = await get_response(user_query, history_pairs)
             else:
-                # If get_response is a normal function, run it in a thread to avoid blocking.
-                bot_reply = await asyncio.get_event_loop().run_in_executor(None, get_response, user_query, context_str)
+                bot_reply = await asyncio.get_event_loop().run_in_executor(
+                    None, get_response, user_query, history_pairs
+                )
         except Exception as e:
             # Handle any errors during retrieval/response generation
             error_msg = f"[Error] {e}"
