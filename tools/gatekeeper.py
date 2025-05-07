@@ -60,5 +60,3 @@ async def need_rag(full_history: str,
 
 
 
-
-
