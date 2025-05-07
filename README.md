@@ -14,6 +14,8 @@ The backend runs on `Flask`, and the server listens on port `5000`. To access th
 2. Navigate to the public IP: **http://3.19.22.54:5000**
 3. Explore the features: upload a grocery photo, speak to the assistant, or ask for recipes.
 
+# Recommend food videos, find stores near you, talk to your loyal Chinese food assistant, and more are waiting for you to unlock!
+
 ### Description
 
 **Cook From What You Have** is an **AI-powered recipe recommendation agent** that helps users discover authentic Chinese dishes based on ingredients they already have. By simply uploading a photo of their groceries or a shopping receipt, users receive customized recipe suggestions, missing ingredient lists, and smart substitutes—bridging daily cooking with intelligent assistance. 
