@@ -52,7 +52,7 @@ You can explore our agent using the following scenarios:
 
 ### Deployment
 
-Our AI assistant is deployed on an Amazon EC2 instance and is accessible at: **[http://3.19.22.54:5000](http://3.19.22.54:5000/)**. The backend runs on `Flask`, and the server listens on port `5000`. 
+Our AI assistant is deployed on Azure and is accessible [here](https://chopsticks-dreams-g6b9bvcvhbcbedec.centralus-01.azurewebsites.net/). The backend runs on `Flask`.
 
 ### Installation Steps
 
