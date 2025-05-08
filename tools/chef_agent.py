@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import List
 import datetime
 
-import openai  \
+import openai  
 client = openai.AsyncOpenAI()
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import Document
@@ -97,7 +97,7 @@ async def _ingredient_query(question: str) -> RagResult:
 TOPIC_PAT = re.compile(r"(?:recipe for|make|cook|买|做)\s+([\w\u4e00-\u9fff\s\-]+)",
                        re.I)
 
-TOPIC_LINE_PAT = re.compile(r"^\s*([A-Za-z\u4e00-\u9fff][^。.\n]{1,30})", re.M)
+# TOPIC_LINE_PAT = re.compile(r"^\s*([A-Za-z\u4e00-\u9fff][^。.\n]{1,30})", re.M)
 
 def detect_topic(user_msg: str, ctx: str) -> str | None:
     """Return a concise dish / food name or None."""
@@ -105,9 +105,9 @@ def detect_topic(user_msg: str, ctx: str) -> str | None:
     if m := TOPIC_PAT.search(user_msg):
         return m.group(1).strip().lower()
 
-    # 2) first heading‑like line in retrieved passages
-    if m := TOPIC_LINE_PAT.search(ctx):
-        return m.group(1).strip().lower()
+    # # 2) first heading‑like line in retrieved passages
+    # if m := TOPIC_LINE_PAT.search(ctx):
+    #     return m.group(1).strip().lower()
 
     return None
 

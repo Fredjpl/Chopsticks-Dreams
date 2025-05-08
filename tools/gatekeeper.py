@@ -4,7 +4,7 @@ from pathlib import Path
 import openai
 import tiktoken
 
-GK_MODEL   = os.getenv("GK_MODEL", "gpt-4o")
+GK_MODEL   = os.getenv("GK_MODEL", "gpt-4o-mini")
 client     = openai.AsyncOpenAI()
 enc        = tiktoken.encoding_for_model(GK_MODEL)
 
@@ -25,7 +25,7 @@ Rules for NO_RAG:
 • The user is still talking about the SAME dish/ingredients.
 • Follow-ups like proportions, timing, videos, re-phrasing, etc.
 
-Few-shot:
+Few-shot examplers:
 USER: I have eggs
 Output: RAG
 
