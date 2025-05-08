@@ -13,7 +13,7 @@ This tool is ideal for **home cooks, students, and busy individuals** who want t
 To explore the application, follow these steps:
 
 1. Open your web browser.
-2. Navigate to the public IP: **[[https://chopsticks-dreams-g6b9bvcvhbcbedec.centralus-01.azurewebsites.net/](https://chopsticks-dreams-g6b9bvcvhbcbedec.centralus-01.azurewebsites.net/)]**
+2. Navigate to [this website](https://chopsticks-dreams-g6b9bvcvhbcbedec.centralus-01.azurewebsites.net/).
 3. Explore the features: upload a grocery photo, speak to the assistant, or ask for recipes.
 
 ![Web Interface Image](https://raw.githubusercontent.com/Fredjpl/Chopsticks-Dreams/main/imgs/web_ui.png)
