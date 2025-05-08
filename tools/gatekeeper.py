@@ -14,11 +14,11 @@ external recipe knowledge (return "RAG") or can answer from prior context
 (return "NO_RAG").
 
 Rules for RAG:
+If the user is talking about they have some ingredients, you have to output RAG.
 • The user presents NEW ingredients or a NEW dish name.
 • The user wants to cook a specific dish or asks for a specific ingredient.
 • The user asks for a specific cooking method or technique.
 • The user asks for a recipe or cooking method.
-
 • The user asks to buy ingredients or wants grocery info.
 
 Rules for NO_RAG:
