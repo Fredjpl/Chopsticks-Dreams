@@ -42,7 +42,7 @@ You can explore our agent using the following scenarios:
    - A list of **missing ingredients**, and
    - A list of **possible substitutions**.
 
-   In PFD parsing section, it offers paddleOCR and a sliding window approach for effective document parsing. To enhance retrieval, we combined Dense (M3E) and Sparse (BGE-M3) strategies with Faiss, BM25, and BGE-Reranker, achieving Q&A accuracy improvements of over 9% compared to GPT-4 with external knowledge.
+   In PFD parsing section, it offers paddleOCR and a sliding window approach for effective document parsing. To enhance retrieval, we combined Dense (M3E) and Sparse (BGE-M3) strategies with Faiss, BM25, and Coherent Reranker, achieving Q&A accuracy improvements of over 9% compared to GPT-4 with external knowledge.
 
 3. **Voice Interaction**: Users can **speak their ingredients or ask relevant cooking questions**. The agent supports **speech-to-text and text-to-speech** via **Azure Whisper**, enabling a hands-free, conversational experience.
 
